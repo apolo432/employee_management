@@ -1,0 +1,133 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}СКУД Устройства - СКУД Тестовая Панель{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-hdd-network"></i> СКУД Устройства</h1>
+    <a href="{% url 'add_device' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle"></i> Добавить устройство
+    </a>
+</div>
+
+{% if devices %}
+    <div class="row">
+        {% for device in devices %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card device-card card-hover">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">{{ device.name }}</h6>
+                        <span class="badge 
+                            {% if device.status == 'active' %}bg-success
+                            {% elif device.status == 'inactive' %}bg-secondary
+                            {% elif device.status == 'maintenance' %}bg-warning
+                            {% else %}bg-danger
+                            {% endif %}">
+                            {{ device.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <strong>IP:</strong> {{ device.ip_address }}:{{ device.port }}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Тип:</strong> {{ device.get_device_type_display }}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Серийный номер:</strong> {{ device.serial_number }}
+                        </div>
+                        {% if device.location %}
+                            <div class="mb-2">
+                                <strong>Местоположение:</strong> {{ device.location }}
+                            </div>
+                        {% endif %}
+                        {% if device.last_communication %}
+                            <div class="mb-2">
+                                <strong>Последняя связь:</strong><br>
+                                <small class="text-muted">{{ device.last_communication|date:"d.m.Y H:i" }}</small>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-sm btn-test" onclick="testDevice('{{ device.id }}', this)">
+                                <span class="loading spinner-border spinner-border-sm" role="status"></span>
+                                <i class="bi bi-wifi"></i> Тест
+                            </button>
+                            <a href="{% url 'device_detail' device.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Подробнее
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Пагинация -->
+    {% if page_obj.has_other_pages %}
+        <nav aria-label="Пагинация устройств">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+    
+{% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-hdd-network text-muted" style="font-size: 4rem;"></i>
+        <h3 class="text-muted mt-3">Устройства не найдены</h3>
+        <p class="text-muted">Добавьте первое СКУД устройство для начала работы</p>
+        <a href="{% url 'add_device' %}" class="btn btn-success btn-lg">
+            <i class="bi bi-plus-circle"></i> Добавить устройство
+        </a>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Функция для массового тестирования устройств
+    function testAllDevices() {
+        const buttons = document.querySelectorAll('button[onclick*="testDevice"]');
+        buttons.forEach(button => {
+            setTimeout(() => {
+                button.click();
+            }, Math.random() * 1000);
+        });
+    }
+    
+    // Добавляем кнопку массового тестирования
+    document.addEventListener('DOMContentLoaded', function() {
+        const header = document.querySelector('.d-flex.justify-content-between');
+        if (header && document.querySelectorAll('button[onclick*="testDevice"]').length > 0) {
+            const testAllBtn = document.createElement('button');
+            testAllBtn.className = 'btn btn-warning me-2';
+            testAllBtn.innerHTML = '<i class="bi bi-play-circle"></i> Тест всех';
+            testAllBtn.onclick = testAllDevices;
+            header.appendChild(testAllBtn);
+        }
+    });
+</script>
+{% endblock %}

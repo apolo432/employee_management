@@ -1,0 +1,195 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Тестовое событие - СКУД Тестовая Панель{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card device-card">
+            <div class="card-header">
+                <h4><i class="bi bi-send"></i> Отправить тестовое событие</h4>
+            </div>
+            <div class="card-body">
+                <form id="testEventForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="cardNumber" class="form-label">Номер карты/ID сотрудника *</label>
+                        <input type="text" class="form-control" id="cardNumber" required
+                               placeholder="EMP001">
+                        <div class="form-text">Введите табельный номер сотрудника</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eventType" class="form-label">Тип события *</label>
+                        <select class="form-select" id="eventType" required>
+                            <option value="entry">Вход</option>
+                            <option value="exit">Выход</option>
+                            <option value="denied">Отказ в доступе</option>
+                            <option value="alarm">Тревога</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="timestamp" class="form-label">Время события</label>
+                        <input type="datetime-local" class="form-control" id="timestamp">
+                        <div class="form-text">Оставьте пустым для текущего времени</div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary w-100" onclick="sendTestEvent()">
+                        <i class="bi bi-send"></i> Отправить событие
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card device-card">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle"></i> Информация</h5>
+            </div>
+            <div class="card-body">
+                <h6>Формат отправляемых данных:</h6>
+                <pre class="bg-light p-3"><code id="jsonPreview">{
+  "card_number": "EMP001",
+  "event_type": "entry",
+  "timestamp": "2024-01-15T09:30:00"
+}</code></pre>
+                
+                <h6 class="mt-3">Типы событий:</h6>
+                <ul class="small">
+                    <li><strong>entry</strong> - Вход сотрудника</li>
+                    <li><strong>exit</strong> - Выход сотрудника</li>
+                    <li><strong>denied</strong> - Отказ в доступе</li>
+                    <li><strong>alarm</strong> - Тревожное событие</li>
+                </ul>
+                
+                <div class="alert alert-info small mt-3">
+                    <i class="bi bi-lightbulb"></i>
+                    <strong>Совет:</strong> Событие будет отправлено как будто от IP адреса 127.0.0.1. 
+                    Убедитесь, что в системе есть устройство с таким IP.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Быстрые тесты -->
+        <div class="card device-card mt-3">
+            <div class="card-header">
+                <h5><i class="bi bi-lightning"></i> Быстрые тесты</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-sm btn-outline-success" onclick="quickTest('EMP001', 'entry')">
+                        <i class="bi bi-arrow-right-circle"></i> Вход EMP001
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="quickTest('EMP001', 'exit')">
+                        <i class="bi bi-arrow-left-circle"></i> Выход EMP001
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="quickTest('EMP999', 'denied')">
+                        <i class="bi bi-x-circle"></i> Отказ EMP999
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="quickTest('UNKNOWN', 'alarm')">
+                        <i class="bi bi-exclamation-triangle"></i> Тревога
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Обновление предварительного просмотра JSON
+    function updateJsonPreview() {
+        const cardNumber = document.getElementById('cardNumber').value || 'EMP001';
+        const eventType = document.getElementById('eventType').value;
+        const timestamp = document.getElementById('timestamp').value || new Date().toISOString();
+        
+        const jsonData = {
+            card_number: cardNumber,
+            event_type: eventType,
+            timestamp: timestamp
+        };
+        
+        document.getElementById('jsonPreview').textContent = JSON.stringify(jsonData, null, 2);
+    }
+    
+    // Быстрый тест
+    function quickTest(cardNumber, eventType) {
+        document.getElementById('cardNumber').value = cardNumber;
+        document.getElementById('eventType').value = eventType;
+        updateJsonPreview();
+        sendTestEvent();
+    }
+    
+    // Обновляем предварительный просмотр при изменении полей
+    document.getElementById('cardNumber').addEventListener('input', updateJsonPreview);
+    document.getElementById('eventType').addEventListener('change', updateJsonPreview);
+    document.getElementById('timestamp').addEventListener('change', updateJsonPreview);
+    
+    // Переопределяем функцию sendTestEvent для этой страницы
+    function sendTestEvent() {
+        const cardNumber = document.getElementById('cardNumber').value;
+        const eventType = document.getElementById('eventType').value;
+        let timestamp = document.getElementById('timestamp').value;
+        
+        if (!cardNumber) {
+            showAlert('warning', 'Введите номер карты');
+            return;
+        }
+        
+        // Если время не указано, используем текущее
+        if (!timestamp) {
+            timestamp = new Date().toISOString();
+        }
+        
+        const eventData = {
+            card_number: cardNumber,
+            event_type: eventType,
+            timestamp: timestamp
+        };
+        
+        // Показываем загрузку
+        const button = document.querySelector('button[onclick="sendTestEvent()"]');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Отправка...';
+        button.disabled = true;
+        
+        fetch('/send-test-event/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(eventData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                // Очищаем форму
+                document.getElementById('cardNumber').value = '';
+                document.getElementById('timestamp').value = '';
+                updateJsonPreview();
+            } else {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Ошибка при отправке события');
+        })
+        .finally(() => {
+            // Восстанавливаем кнопку
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    }
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        updateJsonPreview();
+    });
+</script>
+{% endblock %}

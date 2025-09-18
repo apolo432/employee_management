@@ -1,0 +1,199 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}{{ device.name }} - Детали устройства{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'devices_list' %}">Устройства</a></li>
+                    <li class="breadcrumb-item active">{{ device.name }}</li>
+                </ol>
+            </nav>
+            <h2><i class="bi bi-hdd-network"></i> {{ device.name }}</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Информация об устройстве -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="bi bi-info-circle"></i> Информация об устройстве</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="testDevice()">
+                        <i class="bi bi-play-circle"></i> Тест
+                    </button>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Название:</dt>
+                        <dd class="col-sm-8">{{ device.name }}</dd>
+
+                        <dt class="col-sm-4">Тип:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-primary">{{ device.get_device_type_display }}</span>
+                        </dd>
+
+                        <dt class="col-sm-4">Серийный номер:</dt>
+                        <dd class="col-sm-8"><code>{{ device.serial_number }}</code></dd>
+
+                        <dt class="col-sm-4">IP адрес:</dt>
+                        <dd class="col-sm-8">
+                            <code>{{ device.ip_address }}</code>
+                            <span class="text-muted">:{{ device.port }}</span>
+                        </dd>
+
+                        <dt class="col-sm-4">Местоположение:</dt>
+                        <dd class="col-sm-8">{{ device.location }}</dd>
+
+                        <dt class="col-sm-4">Статус:</dt>
+                        <dd class="col-sm-8">
+                            {% if device.status == 'active' %}
+                                <span class="badge bg-success">Активно</span>
+                            {% elif device.status == 'inactive' %}
+                                <span class="badge bg-secondary">Неактивно</span>
+                            {% elif device.status == 'maintenance' %}
+                                <span class="badge bg-warning">На обслуживании</span>
+                            {% else %}
+                                <span class="badge bg-danger">Ошибка</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Последняя связь:</dt>
+                        <dd class="col-sm-8">
+                            {% if device.last_communication %}
+                                {{ device.last_communication|date:"d.m.Y H:i:s" }}
+                            {% else %}
+                                <span class="text-muted">Не проверялось</span>
+                            {% endif %}
+                        </dd>
+
+                        {% if device.description %}
+                            <dt class="col-sm-4">Описание:</dt>
+                            <dd class="col-sm-8">{{ device.description }}</dd>
+                        {% endif %}
+                    </dl>
+
+                    <div class="mt-3">
+                        <a href="{% url 'devices_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Назад к списку
+                        </a>
+                        <button class="btn btn-primary" onclick="testDevice()">
+                            <i class="bi bi-play-circle"></i> Тестировать соединение
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Последние события -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-clock-history"></i> Последние события</h5>
+                </div>
+                <div class="card-body">
+                    {% if events %}
+                        <div class="list-group list-group-flush">
+                            {% for event in events %}
+                                <div class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold">
+                                            {% if event.event_type == 'entry' %}
+                                                <span class="badge bg-success">Вход</span>
+                                            {% elif event.event_type == 'exit' %}
+                                                <span class="badge bg-info">Выход</span>
+                                            {% elif event.event_type == 'denied' %}
+                                                <span class="badge bg-danger">Отказ</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Тревога</span>
+                                            {% endif %}
+                                            {{ event.event_time|time:"H:i:s" }}
+                                        </div>
+                                        <small class="text-muted">
+                                            {% if event.employee %}
+                                                {{ event.employee.full_name }}
+                                            {% else %}
+                                                Неизвестный
+                                            {% endif %}
+                                            {% if event.card_number %}
+                                                ({{ event.card_number }})
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">{{ event.event_time|date:"d.m" }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3">
+                            <a href="{% url 'events_list' %}?device={{ device.id }}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-list-ul"></i> Все события устройства
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-inbox text-muted"></i>
+                            <p class="text-muted mt-2">События не найдены</p>
+                            <a href="{% url 'send_test_event' %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-circle"></i> Отправить тестовое событие
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function testDevice() {
+        const button = document.querySelector('button[onclick="testDevice()"]');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Тестирование...';
+        button.disabled = true;
+
+        fetch(`/test-device/{{ device.id }}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', `Устройство ${data.device_name} онлайн: ${data.message}`);
+                    // Обновляем страницу для показа нового статуса
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showAlert('danger', `Устройство ${data.device_name} офлайн: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Ошибка при тестировании устройства');
+            })
+            .finally(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+    }
+
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Автоматически скрыть через 5 секунд
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+</script>
+{% endblock %}

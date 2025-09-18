@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}СКУД Тестовая Панель{% endblock %}</title>
+    
+    <!-- Bootstrap CSS для быстрого стилизования -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        .status-online { color: #28a745; }
+        .status-offline { color: #dc3545; }
+        .status-warning { color: #ffc107; }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .sidebar {
+            background-color: #f8f9fa;
+            min-height: calc(100vh - 56px);
+        }
+        
+        .main-content {
+            background-color: #ffffff;
+        }
+        
+        .event-entry { border-left: 4px solid #28a745; }
+        .event-exit { border-left: 4px solid #007bff; }
+        .event-denied { border-left: 4px solid #dc3545; }
+        .event-alarm { border-left: 4px solid #ffc107; }
+        
+        .device-card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .stats-card-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .stats-card-warning {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+        
+        .stats-card-danger {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            color: white;
+        }
+        
+        .btn-test {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+        }
+        
+        .btn-test:hover {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+            color: white;
+        }
+        
+        .loading {
+            display: none;
+        }
+        
+        .loading.show {
+            display: inline-block;
+        }
+        
+        /* Улучшенные стили для sidebar */
+        .sidebar .list-group-item {
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            padding: 12px 16px;
+            transition: all 0.2s ease;
+            background-color: transparent;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .sidebar .list-group-item:hover {
+            background-color: #e3f2fd !important;
+            color: #1976d2 !important;
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+        }
+        
+        .sidebar .list-group-item.active {
+            background-color: #1976d2 !important;
+            color: white !important;
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+            border-left: 4px solid #0d47a1;
+            font-weight: 600;
+        }
+        
+        .sidebar .list-group-item.active:hover {
+            background-color: #1565c0 !important;
+            color: white !important;
+            transform: translateX(6px);
+            box-shadow: 0 3px 12px rgba(25, 118, 210, 0.4);
+        }
+        
+        .sidebar .list-group-item.active i {
+            color: white !important;
+            transform: scale(1.1);
+        }
+        
+        .sidebar .list-group-item i {
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+        }
+        
+        /* Анимация для иконок */
+        .sidebar .list-group-item:hover i {
+            transform: scale(1.1);
+            transition: transform 0.2s ease;
+        }
+        
+        /* Стили для быстрой статистики */
+        .sidebar .mt-4 {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .sidebar .mt-4 h6 {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .sidebar .mt-4 .small {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+        
+        .sidebar .mt-4 .badge {
+            font-size: 0.75em;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="bi bi-shield-check"></i> СКУД Тестовая Панель
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard' %}">
+                            <i class="bi bi-house"></i> Главная
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'devices_list' %}">
+                            <i class="bi bi-hdd-network"></i> Устройства
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'events_list' %}">
+                            <i class="bi bi-clock-history"></i> События
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'employees_list' %}">
+                            <i class="bi bi-people"></i> Сотрудники
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'quick_test' %}">
+                            <i class="bi bi-play-circle"></i> Тесты
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/" target="_blank">
+                            <i class="bi bi-gear"></i> Админка
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Боковая панель -->
+            <div class="col-md-3 col-lg-2 sidebar p-3">
+                <div class="list-group">
+                    <a href="{% url 'dashboard' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="bi bi-house"></i> Обзор системы
+                    </a>
+                    <a href="{% url 'devices_list' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'devices_list' or request.resolver_match.url_name == 'device_detail' %}active{% endif %}">
+                        <i class="bi bi-hdd-network"></i> СКУД устройства
+                    </a>
+                    <a href="{% url 'add_device' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'add_device' %}active{% endif %}">
+                        <i class="bi bi-plus-circle"></i> Добавить устройство
+                    </a>
+                    <a href="{% url 'events_list' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'events_list' %}active{% endif %}">
+                        <i class="bi bi-clock-history"></i> События СКУД
+                    </a>
+                    <a href="{% url 'send_test_event' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'send_test_event' %}active{% endif %}">
+                        <i class="bi bi-send"></i> Тестовое событие
+                    </a>
+                    <a href="{% url 'quick_test' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'quick_test' %}active{% endif %}">
+                        <i class="bi bi-play-circle"></i> Быстрый тест
+                    </a>
+                    <a href="{% url 'employees_list' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'employees_list' or request.resolver_match.url_name == 'employee_events' %}active{% endif %}">
+                        <i class="bi bi-people"></i> Сотрудники
+                    </a>
+                </div>
+                
+                <!-- Быстрая статистика -->
+                <div class="mt-4">
+                    <h6 class="text-muted">Быстрая статистика</h6>
+                    <div class="small text-muted">
+                        <div>Устройств: <span id="quick-devices-count">-</span></div>
+                        <div>Событий сегодня: <span id="quick-events-count">-</span></div>
+                        <div>Статус API: <span id="api-status" class="badge bg-secondary">Проверка...</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Основной контент -->
+            <div class="col-md-9 col-lg-10 main-content p-4">
+                <!-- Сообщения -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Общие JavaScript функции -->
+    <script>
+        // Автоматическое обновление статистики
+        function updateQuickStats() {
+            fetch('/api/status/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('quick-devices-count').textContent = data.total_devices;
+                        document.getElementById('api-status').textContent = 'Онлайн';
+                        document.getElementById('api-status').className = 'badge bg-success';
+                    } else {
+                        document.getElementById('api-status').textContent = 'Ошибка';
+                        document.getElementById('api-status').className = 'badge bg-danger';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('api-status').textContent = 'Офлайн';
+                    document.getElementById('api-status').className = 'badge bg-danger';
+                });
+        }
+        
+        // Обновляем статистику каждые 30 секунд
+        updateQuickStats();
+        setInterval(updateQuickStats, 30000);
+        
+        // Функция для показа загрузки
+        function showLoading(element) {
+            element.querySelector('.loading').classList.add('show');
+            element.disabled = true;
+        }
+        
+        function hideLoading(element) {
+            element.querySelector('.loading').classList.remove('show');
+            element.disabled = false;
+        }
+        
+        // Функция для тестирования устройства
+        function testDevice(deviceId, buttonElement) {
+            showLoading(buttonElement);
+            
+            fetch(`/test-device/${deviceId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading(buttonElement);
+                    
+                    if (data.success) {
+                        showAlert('success', `Устройство ${data.device_name} онлайн: ${data.message}`);
+                    } else {
+                        showAlert('danger', `Устройство ${data.device_name} офлайн: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    hideLoading(buttonElement);
+                    showAlert('danger', 'Ошибка при тестировании устройства');
+                });
+        }
+        
+        // Функция для показа уведомлений
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const container = document.querySelector('.main-content');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Автоматически скрываем через 5 секунд
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+        
+        // Функция для отправки тестового события
+        function sendTestEvent() {
+            const cardNumber = document.getElementById('cardNumber').value;
+            const eventType = document.getElementById('eventType').value;
+            
+            if (!cardNumber) {
+                showAlert('warning', 'Введите номер карты');
+                return;
+            }
+            
+            const eventData = {
+                card_number: cardNumber,
+                event_type: eventType,
+                timestamp: new Date().toISOString()
+            };
+            
+            fetch('/send-test-event/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                } else {
+                    showAlert('danger', data.message);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Ошибка при отправке события');
+            });
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

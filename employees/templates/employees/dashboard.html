@@ -1,0 +1,321 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Главная - СКУД Тестовая Панель{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-speedometer2"></i> Обзор системы СКУД</h1>
+    <div>
+        <button class="btn btn-test" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i> Обновить
+        </button>
+        <a href="{% url 'quick_test' %}" class="btn btn-outline-primary">
+            <i class="bi bi-play-circle"></i> Быстрый тест
+        </a>
+    </div>
+</div>
+
+<!-- Статистические карточки -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card-success card-hover">
+            <div class="card-body text-center">
+                <i class="bi bi-hdd-network fs-1"></i>
+                <h3 class="mt-2">{{ device_stats.total }}</h3>
+                <p class="mb-0">Всего устройств</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card card-hover">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle fs-1"></i>
+                <h3 class="mt-2">{{ device_stats.active }}</h3>
+                <p class="mb-0">Активных устройств</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card-warning card-hover">
+            <div class="card-body text-center">
+                <i class="bi bi-clock-history fs-1"></i>
+                <h3 class="mt-2">{{ event_stats.total }}</h3>
+                <p class="mb-0">Всего событий</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card-danger card-hover">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-day fs-1"></i>
+                <h3 class="mt-2">{{ event_stats.today }}</h3>
+                <p class="mb-0">Событий сегодня</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Статус устройств -->
+    <div class="col-md-6">
+        <div class="card device-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-hdd-network"></i> Устройства</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadDeviceStatus()">
+                    <i class="bi bi-arrow-clockwise"></i> Проверить
+                </button>
+            </div>
+            <div class="card-body" id="deviceStatusContainer">
+                {% if devices %}
+                    {% for device in devices %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded" id="device-{{ device.id }}">
+                            <div>
+                                <strong>{{ device.name }}</strong><br>
+                                <small class="text-muted">{{ device.ip_address }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge 
+                                    {% if device.status == 'active' %}bg-success
+                                    {% elif device.status == 'inactive' %}bg-secondary
+                                    {% elif device.status == 'maintenance' %}bg-warning
+                                    {% else %}bg-danger
+                                    {% endif %}">
+                                    {{ device.get_status_display }}
+                                </span>
+                                <br>
+                                <small class="text-muted">
+                                    {% if device.last_communication %}
+                                        {{ device.last_communication|date:"H:i" }}
+                                    {% else %}
+                                        Не проверялось
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    <div class="text-center mt-2">
+                        <button class="btn btn-sm btn-test" onclick="testAllDevices()">
+                            <i class="bi bi-play-circle"></i> Тест всех устройств
+                        </button>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Устройства не найдены</p>
+                    <a href="{% url 'add_device' %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus"></i> Добавить устройство
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Последние события -->
+    <div class="col-md-6">
+        <div class="card device-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-clock-history"></i> Последние события</h5>
+                <a href="{% url 'events_list' %}" class="btn btn-sm btn-outline-primary">Все события</a>
+            </div>
+            <div class="card-body">
+                {% if recent_events %}
+                    {% for event in recent_events %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded event-{{ event.event_type }}">
+                            <div>
+                                <strong>
+                                    {% if event.employee %}
+                                        {{ event.employee.full_name }}
+                                    {% else %}
+                                        Неизвестный
+                                    {% endif %}
+                                </strong><br>
+                                <small class="text-muted">
+                                    {{ event.device.name }} | {{ event.card_number }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge 
+                                    {% if event.event_type == 'entry' %}bg-success
+                                    {% elif event.event_type == 'exit' %}bg-primary
+                                    {% elif event.event_type == 'denied' %}bg-danger
+                                    {% else %}bg-warning
+                                    {% endif %}">
+                                    {{ event.get_event_type_display }}
+                                </span>
+                                <br>
+                                <small class="text-muted">
+                                    {{ event.event_time|date:"H:i" }}
+                                </small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">События не найдены</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Быстрые действия -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card device-card">
+            <div class="card-header">
+                <h5><i class="bi bi-lightning"></i> Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'add_device' %}" class="btn btn-success w-100">
+                            <i class="bi bi-plus-circle"></i> Добавить устройство
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'send_test_event' %}" class="btn btn-primary w-100">
+                            <i class="bi bi-send"></i> Отправить тестовое событие
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'quick_test' %}" class="btn btn-warning w-100">
+                            <i class="bi bi-play-circle"></i> Быстрый тест
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="/admin/" target="_blank" class="btn btn-secondary w-100">
+                            <i class="bi bi-gear"></i> Админ-панель
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Информация -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card device-card">
+            <div class="card-header">
+                <h5><i class="bi bi-code-slash"></i> API Информация</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Основные endpoints:</h6>
+                        <ul class="list-unstyled">
+                            <li><code>GET /api/skud/test/</code> - Тест API</li>
+                            <li><code>POST /api/skud/event/</code> - Прием событий</li>
+                            <li><code>GET /api/skud/status/</code> - Статус системы</li>
+                            <li><code>GET /api/skud/health/</code> - Проверка здоровья</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Формат данных события:</h6>
+                        <pre class="bg-light p-2 small"><code>{
+  "card_number": "EMP001",
+  "event_type": "entry",
+  "timestamp": "2024-01-15T09:30:00"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% csrf_token %}
+<script>
+    // Функция для загрузки статуса всех устройств
+    function loadDeviceStatus() {
+        const button = document.querySelector('button[onclick="loadDeviceStatus()"]');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Проверка...';
+        button.disabled = true;
+        
+        fetch('/check-devices-health/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateDeviceStatusDisplay(data.devices);
+                    showAlert('success', 'Статус устройств обновлен');
+                } else {
+                    showAlert('danger', 'Ошибка получения статуса устройств');
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Ошибка соединения с сервером');
+            })
+            .finally(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+    }
+    
+    // Функция для обновления отображения статуса устройств
+    function updateDeviceStatusDisplay(devices) {
+        for (const [ip, status] of Object.entries(devices)) {
+            // Находим элемент устройства по IP (нужно будет добавить data-ip атрибут)
+            const deviceElement = document.querySelector(`[data-ip="${ip}"]`);
+            if (deviceElement) {
+                const badge = deviceElement.querySelector('.badge');
+                const timeElement = deviceElement.querySelector('small');
+                
+                if (status.is_online) {
+                    badge.className = 'badge bg-success';
+                    badge.textContent = 'Онлайн';
+                } else {
+                    badge.className = 'badge bg-danger';
+                    badge.textContent = 'Офлайн';
+                }
+                
+                timeElement.textContent = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+            }
+        }
+    }
+    
+    // Функция для тестирования всех устройств
+    function testAllDevices() {
+        const devices = document.querySelectorAll('[id^="device-"]');
+        devices.forEach((deviceElement, index) => {
+            const deviceId = deviceElement.id.replace('device-', '');
+            setTimeout(() => {
+                testDevice(deviceId, deviceElement);
+            }, index * 1000); // Задержка между тестами
+        });
+    }
+    
+    // Функция для тестирования одного устройства
+    function testDevice(deviceId, element) {
+        const badge = element.querySelector('.badge');
+        const timeElement = element.querySelector('small');
+        
+        // Показываем процесс тестирования
+        badge.textContent = 'Тест...';
+        badge.className = 'badge bg-warning';
+        
+        fetch(`/test-device/${deviceId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    badge.className = 'badge bg-success';
+                    badge.textContent = 'Онлайн';
+                    timeElement.textContent = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+                } else {
+                    badge.className = 'badge bg-danger';
+                    badge.textContent = 'Офлайн';
+                }
+            })
+            .catch(error => {
+                badge.className = 'badge bg-danger';
+                badge.textContent = 'Ошибка';
+            });
+    }
+</script>
+{% endblock %}

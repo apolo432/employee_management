@@ -1,0 +1,156 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Добавить устройство - СКУД Тестовая Панель{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card device-card">
+            <div class="card-header">
+                <h4><i class="bi bi-plus-circle"></i> Добавить новое СКУД устройство</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Название устройства *</label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       placeholder="Например: Турникет главный вход">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="device_type" class="form-label">Тип устройства *</label>
+                                <select class="form-select" id="device_type" name="device_type" required>
+                                    <option value="">Выберите тип</option>
+                                    <option value="turnstile">Турникет</option>
+                                    <option value="reader">Считыватель</option>
+                                    <option value="controller">Контроллер</option>
+                                    <option value="gate">Шлагбаум</option>
+                                    <option value="door">Дверь</option>
+                                    <option value="other">Другое</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="ip_address" class="form-label">IP адрес *</label>
+                                <input type="text" class="form-control" id="ip_address" name="ip_address" required
+                                       placeholder="192.168.1.100">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="port" class="form-label">Порт</label>
+                                <input type="number" class="form-control" id="port" name="port" value="80"
+                                       placeholder="80">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="serial_number" class="form-label">Серийный номер *</label>
+                                <input type="text" class="form-control" id="serial_number" name="serial_number" required
+                                       placeholder="SKUD001">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="location" class="form-label">Местоположение</label>
+                                <input type="text" class="form-control" id="location" name="location"
+                                       placeholder="Главный вход">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                  placeholder="Дополнительная информация об устройстве"></textarea>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Добавить устройство
+                        </button>
+                        <a href="{% url 'devices_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Информационная панель -->
+        <div class="card device-card mt-4">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle"></i> Информация</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Настройка устройства:</h6>
+                        <ul class="small">
+                            <li>Укажите IP адрес сервера: <code>{{ request.get_host }}</code></li>
+                            <li>URL для отправки данных: <code>http://{{ request.get_host }}/api/skud/event/</code></li>
+                            <li>Порт по умолчанию: 80</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Формат данных:</h6>
+                        <pre class="bg-light p-2 small"><code>{
+  "card_number": "EMP001",
+  "event_type": "entry",
+  "timestamp": "2024-01-15T09:30:00"
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Валидация IP адреса
+    document.getElementById('ip_address').addEventListener('input', function() {
+        const ip = this.value;
+        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        
+        if (ip && !ipRegex.test(ip)) {
+            this.classList.add('is-invalid');
+        } else {
+            this.classList.remove('is-invalid');
+        }
+    });
+    
+    // Автоматическое заполнение порта при выборе типа устройства
+    document.getElementById('device_type').addEventListener('change', function() {
+        const port = document.getElementById('port');
+        if (this.value === 'controller') {
+            port.value = '8080';
+        } else {
+            port.value = '80';
+        }
+    });
+    
+    // Генерация серийного номера
+    document.getElementById('device_type').addEventListener('change', function() {
+        const serial = document.getElementById('serial_number');
+        if (!serial.value) {
+            const type = this.value.toUpperCase();
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            serial.value = `${type}${random}`;
+        }
+    });
+</script>
+{% endblock %}
