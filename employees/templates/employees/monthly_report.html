@@ -1,0 +1,126 @@
+{% extends "employees/reports_base.html" %}
+
+{% block page_title %}Месячный отчёт{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item active">Месячный отчёт</li>{% endblock %}
+
+{% block reports_content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card report-card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Генерация месячного отчёта</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="year">Год</label>
+                                <select class="form-control" id="year" name="year" required>
+                                    {% for year in years %}
+                                    <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>
+                                        {{ year }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="month">Месяц</label>
+                                <select class="form-control" id="month" name="month" required>
+                                    {% for month_num, month_name in months %}
+                                    <option value="{{ month_num }}" {% if month_num == current_month %}selected{% endif %}>
+                                        {{ month_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="department_id">Отдел (опционально)</label>
+                                <select class="form-control" id="department_id" name="department_id">
+                                    <option value="">Все отделы</option>
+                                    {% for dept_id, dept_name in departments %}
+                                    <option value="{{ dept_id }}">{{ dept_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="employee_id">Сотрудник (опционально)</label>
+                                <select class="form-control" id="employee_id" name="employee_id">
+                                    <option value="">Все сотрудники</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}">{{ employee.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="format">Формат файла</label>
+                                <select class="form-control" id="format" name="format">
+                                    <option value="xlsx">Excel (.xlsx)</option>
+                                    <option value="csv">CSV (.csv)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Скачать отчёт
+                        </button>
+                        <a href="{% url 'reports_dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Назад
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card report-card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">Информация об отчёте</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    Месячный отчёт содержит детальную информацию о рабочем времени сотрудников за выбранный период.
+                </p>
+                
+                <h6>Включает:</h6>
+                <ul class="small">
+                    <li>ФИО и табельный номер</li>
+                    <li>Отдел и подразделение</li>
+                    <li>Дату и статус дня</li>
+                    <li>Время входа и выхода</li>
+                    <li>Отработанные и ожидаемые часы</li>
+                    <li>Переработку и недоработку</li>
+                    <li>Количество сессий</li>
+                    <li>Информацию о проблемах</li>
+                </ul>
+                
+                <div class="alert alert-warning small">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Примечание:</strong> Отчёт генерируется на основе обработанных данных СКУД. 
+                    Убедитесь, что все события обработаны корректно.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

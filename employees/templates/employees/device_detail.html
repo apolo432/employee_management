@@ -84,6 +84,18 @@
                         <button class="btn btn-primary" onclick="testDevice()">
                             <i class="bi bi-play-circle"></i> Тестировать соединение
                         </button>
+                        {% if device.is_active %}
+                            <a href="{% url 'deactivate_device' device.id %}" class="btn btn-warning">
+                                <i class="bi bi-pause-circle"></i> Деактивировать
+                            </a>
+                        {% else %}
+                            <a href="{% url 'activate_device' device.id %}" class="btn btn-success">
+                                <i class="bi bi-play-circle"></i> Активировать
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'delete_device' device.id %}" class="btn btn-danger" onclick="return confirm('Вы уверены, что хотите удалить устройство {{ device.name }}?')">
+                            <i class="bi bi-trash"></i> Удалить
+                        </a>
                     </div>
                 </div>
             </div>

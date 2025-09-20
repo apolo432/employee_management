@@ -205,6 +205,28 @@
                 </ul>
                 
                 <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ user.first_name|default:user.username }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'profile_view' %}">
+                                <i class="bi bi-person"></i> Мой профиль
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'logout_view' %}">
+                                <i class="bi bi-box-arrow-right"></i> Выйти
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login_view' %}">
+                            <i class="bi bi-box-arrow-in-right"></i> Войти
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/" target="_blank">
                             <i class="bi bi-gear"></i> Админка
@@ -241,6 +263,31 @@
                     </a>
                     <a href="{% url 'employees_list' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'employees_list' or request.resolver_match.url_name == 'employee_events' %}active{% endif %}">
                         <i class="bi bi-people"></i> Сотрудники
+                    </a>
+                </div>
+                
+                <!-- Разделитель -->
+                <hr class="my-3">
+                
+                <!-- Система учёта рабочего времени -->
+                <div class="list-group">
+                    <a href="{% url 'reports_dashboard' %}" class="list-group-item list-group-item-action {% if 'reports' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-graph-up"></i> Отчёты и аналитика
+                    </a>
+                    <a href="{% url 'work_time_summaries' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'work_time_summaries' %}active{% endif %}">
+                        <i class="bi bi-calendar-check"></i> Сводки времени
+                    </a>
+                    <a href="{% url 'work_sessions' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'work_sessions' %}active{% endif %}">
+                        <i class="bi bi-clock"></i> Рабочие сессии
+                    </a>
+                    <a href="{% url 'monthly_report' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'monthly_report' %}active{% endif %}">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Месячный отчёт
+                    </a>
+                    <a href="{% url 'employee_report' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'employee_report' %}active{% endif %}">
+                        <i class="bi bi-person-check"></i> Отчёт по сотруднику
+                    </a>
+                    <a href="{% url 'department_report' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'department_report' %}active{% endif %}">
+                        <i class="bi bi-building"></i> Отчёт по отделу
                     </a>
                 </div>
                 

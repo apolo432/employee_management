@@ -16,3 +16,5 @@ psycopg2-binary>=2.9.0
 python-decouple>=3.8
 gunicorn>=21.2.0
 whitenoise>=6.6.0
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0

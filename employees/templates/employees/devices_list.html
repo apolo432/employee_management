@@ -5,18 +5,33 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="bi bi-hdd-network"></i> СКУД Устройства</h1>
-    <a href="{% url 'add_device' %}" class="btn btn-success">
-        <i class="bi bi-plus-circle"></i> Добавить устройство
-    </a>
+    <div class="d-flex gap-2">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="showInactive" 
+                   {% if show_inactive %}checked{% endif %}
+                   onchange="toggleInactiveDevices(this.checked)">
+            <label class="form-check-label" for="showInactive">
+                Показать неактивные
+            </label>
+        </div>
+        <a href="{% url 'add_device' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Добавить устройство
+        </a>
+    </div>
 </div>
 
 {% if devices %}
     <div class="row">
         {% for device in devices %}
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card device-card card-hover">
+                <div class="card device-card card-hover {% if not device.is_active %}opacity-75{% endif %}">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">{{ device.name }}</h6>
+                        <h6 class="mb-0">
+                            {{ device.name }}
+                            {% if not device.is_active %}
+                                <span class="badge bg-secondary ms-1">Неактивно</span>
+                            {% endif %}
+                        </h6>
                         <span class="badge 
                             {% if device.status == 'active' %}bg-success
                             {% elif device.status == 'inactive' %}bg-secondary
@@ -48,13 +63,25 @@
                             </div>
                         {% endif %}
                         
-                        <div class="d-flex gap-2 mt-3">
+                        <div class="d-flex gap-2 mt-3 flex-wrap">
                             <button class="btn btn-sm btn-test" onclick="testDevice('{{ device.id }}', this)">
                                 <span class="loading spinner-border spinner-border-sm" role="status"></span>
                                 <i class="bi bi-wifi"></i> Тест
                             </button>
                             <a href="{% url 'device_detail' device.id %}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i> Подробнее
+                            </a>
+                            {% if device.is_active %}
+                                <a href="{% url 'deactivate_device' device.id %}" class="btn btn-sm btn-outline-warning" title="Деактивировать устройство">
+                                    <i class="bi bi-pause-circle"></i>
+                                </a>
+                            {% else %}
+                                <a href="{% url 'activate_device' device.id %}" class="btn btn-sm btn-outline-success" title="Активировать устройство">
+                                    <i class="bi bi-play-circle"></i>
+                                </a>
+                            {% endif %}
+                            <a href="{% url 'delete_device' device.id %}" class="btn btn-sm btn-outline-danger" title="Удалить устройство" onclick="return confirm('Вы уверены, что хотите удалить устройство {{ device.name }}?')">
+                                <i class="bi bi-trash"></i>
                             </a>
                         </div>
                     </div>
@@ -116,6 +143,19 @@
                 button.click();
             }, Math.random() * 1000);
         });
+    }
+    
+    // Функция для переключения показа неактивных устройств
+    function toggleInactiveDevices(showInactive) {
+        const url = new URL(window.location);
+        if (showInactive) {
+            url.searchParams.set('show_inactive', 'true');
+        } else {
+            url.searchParams.delete('show_inactive');
+        }
+        // Сбрасываем страницу при изменении фильтра
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
     }
     
     // Добавляем кнопку массового тестирования

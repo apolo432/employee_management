@@ -1,0 +1,322 @@
+{% extends "employees/base.html" %}
+
+{% block title %}Мой профиль{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-person-circle"></i> Мой профиль
+                </h1>
+                <div>
+                    <a href="{% url 'reports_dashboard' %}" class="btn btn-primary">
+                        <i class="bi bi-graph-up"></i> Отчёты
+                    </a>
+                    <a href="{% url 'logout_view' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-box-arrow-right"></i> Выйти
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Информация о пользователе -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person"></i> Информация о пользователе
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Логин:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ user.username }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Имя:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ user.first_name|default:"Не указано" }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Фамилия:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ user.last_name|default:"Не указано" }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Email:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ user.email|default:"Не указан" }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Статус:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {% if user.is_staff %}
+                                <span class="badge bg-success">Администратор</span>
+                            {% elif user.is_active %}
+                                <span class="badge bg-primary">Пользователь</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Неактивен</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Дата регистрации:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ user.date_joined|date:"d.m.Y H:i" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Информация о сотруднике -->
+        <div class="col-md-6">
+            {% if employee_data %}
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-briefcase"></i> Информация о сотруднике
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>ФИО:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ employee_data.full_name }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Табельный номер:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ employee_data.employee_id }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Отдел:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ employee_data.department }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Должность:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ employee_data.position }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Ставка:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ employee_data.work_fraction }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <strong>Часов в день:</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ employee_data.daily_hours }}ч
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Информация о сотруднике
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="bi bi-person-x" style="font-size: 3rem; color: #6c757d; margin-bottom: 1rem;"></i>
+                    <p class="text-muted">Информация о сотруднике не найдена</p>
+                    <small class="text-muted">
+                        Обратитесь к администратору для связывания аккаунта с профилем сотрудника
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Статистика рабочего времени -->
+    {% if work_stats %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up"></i> Статистика рабочего времени за {{ today|date:"F Y" }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-primary">{{ work_stats.total_days }}</h4>
+                                <small class="text-muted">Всего дней</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-success">{{ work_stats.present_days }}</h4>
+                                <small class="text-muted">Присутствовал</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-danger">{{ work_stats.absent_days }}</h4>
+                                <small class="text-muted">Отсутствовал</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-warning">{{ work_stats.excused_days }}</h4>
+                                <small class="text-muted">Уважительная причина</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h4 class="text-primary">{{ work_stats.total_hours|floatformat:1 }}ч</h4>
+                                <small class="text-muted">Отработано</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h4 class="text-info">{{ work_stats.expected_hours|floatformat:1 }}ч</h4>
+                                <small class="text-muted">Ожидаемо</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                {% if work_stats.overtime_hours > 0 %}
+                                    <h4 class="text-success">+{{ work_stats.overtime_hours|floatformat:1 }}ч</h4>
+                                    <small class="text-muted">Переработка</small>
+                                {% elif work_stats.underwork_hours > 0 %}
+                                    <h4 class="text-danger">-{{ work_stats.underwork_hours|floatformat:1 }}ч</h4>
+                                    <small class="text-muted">Недоработка</small>
+                                {% else %}
+                                    <h4 class="text-muted">0ч</h4>
+                                    <small class="text-muted">Переработка</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if work_stats.problem_days > 0 %}
+                    <hr>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Внимание!</strong> У вас {{ work_stats.problem_days }} проблемных дней. 
+                        Проверьте незакрытые сессии или обратитесь к администратору.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Быстрые действия -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning"></i> Быстрые действия
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'work_time_summaries' %}?employee_id={{ user.employee.id }}" class="btn btn-outline-primary btn-block w-100">
+                                <i class="bi bi-calendar-check"></i> Мои сводки
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'work_sessions' %}?employee_id={{ user.employee.id }}" class="btn btn-outline-success btn-block w-100">
+                                <i class="bi bi-clock"></i> Мои сессии
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'employee_report' %}" class="btn btn-outline-info btn-block w-100">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Мой отчёт
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'reports_dashboard' %}" class="btn btn-outline-warning btn-block w-100">
+                                <i class="bi bi-graph-up"></i> Все отчёты
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

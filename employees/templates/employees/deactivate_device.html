@@ -1,0 +1,77 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Деактивация устройства - {{ device.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4><i class="bi bi-pause-circle"></i> Деактивация устройства</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="bi bi-info-circle"></i> Рекомендуемый способ</h5>
+                        <p>Деактивация устройства - это более безопасный способ "удаления" устройства.</p>
+                    </div>
+                    
+                    <h5>Информация об устройстве:</h5>
+                    <dl class="row">
+                        <dt class="col-sm-3">Название:</dt>
+                        <dd class="col-sm-9">{{ device.name }}</dd>
+                        
+                        <dt class="col-sm-3">Тип:</dt>
+                        <dd class="col-sm-9">{{ device.get_device_type_display }}</dd>
+                        
+                        <dt class="col-sm-3">IP адрес:</dt>
+                        <dd class="col-sm-9">{{ device.ip_address }}:{{ device.port }}</dd>
+                        
+                        <dt class="col-sm-3">Серийный номер:</dt>
+                        <dd class="col-sm-9">{{ device.serial_number }}</dd>
+                        
+                        <dt class="col-sm-3">Местоположение:</dt>
+                        <dd class="col-sm-9">{{ device.location }}</dd>
+                        
+                        <dt class="col-sm-3">Текущий статус:</dt>
+                        <dd class="col-sm-9">
+                            {% if device.status == 'active' %}
+                                <span class="badge bg-success">Активно</span>
+                            {% elif device.status == 'inactive' %}
+                                <span class="badge bg-secondary">Неактивно</span>
+                            {% elif device.status == 'maintenance' %}
+                                <span class="badge bg-warning">На обслуживании</span>
+                            {% else %}
+                                <span class="badge bg-danger">Ошибка</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                    
+                    <div class="alert alert-success">
+                        <h6><i class="bi bi-check-circle"></i> Преимущества деактивации:</h6>
+                        <ul class="mb-0">
+                            <li>Устройство перестанет отображаться в активных устройствах</li>
+                            <li>Все исторические данные сохранятся</li>
+                            <li>Устройство можно будет легко реактивировать</li>
+                            <li>Безопасно для временных устройств</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'device_detail' device.id %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Отмена
+                        </a>
+                        
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-pause-circle"></i> Деактивировать устройство
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

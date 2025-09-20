@@ -1,7 +1,9 @@
 from django.db import models
+from django.contrib.auth.models import User
 from turbodrf.mixins import TurboDRFMixin
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from decimal import Decimal
 import uuid
 
 
@@ -137,6 +139,16 @@ class Employee(models.Model, TurboDRFMixin):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    # Связь с пользователем Django
+    user = models.OneToOneField(
+        User, 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='employee_profile',
+        verbose_name="Пользователь системы"
+    )
+    
     # Основная информация
     last_name = models.CharField(max_length=100, verbose_name="Фамилия")
     first_name = models.CharField(max_length=100, verbose_name="Имя")
@@ -171,6 +183,24 @@ class Employee(models.Model, TurboDRFMixin):
     termination_date = models.DateField(null=True, blank=True, verbose_name="Дата увольнения")
     is_active = models.BooleanField(default=True, verbose_name="Активный сотрудник")
     
+    # Учёт рабочего времени
+    work_fraction = models.DecimalField(
+        max_digits=3, 
+        decimal_places=2, 
+        default=Decimal('1.00'),
+        validators=[MinValueValidator(Decimal('0.25')), MaxValueValidator(Decimal('2.00'))],
+        verbose_name="Ставка работы",
+        help_text="1.00 = полная ставка, 0.5 = полставки, 1.5 = полтора ставки"
+    )
+    daily_hours = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        default=Decimal('8.00'),
+        validators=[MinValueValidator(Decimal('1.00')), MaxValueValidator(Decimal('24.00'))],
+        verbose_name="Часов в день",
+        help_text="Стандартное количество рабочих часов в день"
+    )
+    
     # Системные поля
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
@@ -193,6 +223,38 @@ class Employee(models.Model, TurboDRFMixin):
         return today.year - self.birth_date.year - (
             (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
         )
+    
+    def get_expected_daily_seconds(self, date=None):
+        """
+        Получить ожидаемое количество секунд работы в день
+        с учётом ставки и стандартных часов
+        """
+        if date is None:
+            date = timezone.now().date()
+        
+        # Проверяем, есть ли отпуск или командировка на эту дату
+        if self.has_vacation_on_date(date) or self.has_business_trip_on_date(date):
+            return 0
+        
+        # Рассчитываем ожидаемые секунды: стандартные часы * ставка * 3600
+        expected_hours = self.daily_hours * self.work_fraction
+        return int(expected_hours * 3600)
+    
+    def has_vacation_on_date(self, date):
+        """Проверить, есть ли отпуск на указанную дату"""
+        return self.vacations.filter(
+            start_date__lte=date,
+            end_date__gte=date,
+            status__in=['approved', 'taken']
+        ).exists()
+    
+    def has_business_trip_on_date(self, date):
+        """Проверить, есть ли командировка на указанную дату"""
+        return self.business_trips.filter(
+            start_date__lte=date,
+            end_date__gte=date,
+            status__in=['approved', 'in_progress']
+        ).exists()
 
     @classmethod
     def turbodrf(cls):
@@ -444,3 +506,269 @@ class WorkTimeRecord(models.Model, TurboDRFMixin):
             self.is_present = True
         
         super().save(*args, **kwargs)
+
+
+class WorkSession(models.Model):
+    """Модель рабочей сессии (приход-уход)"""
+    
+    SESSION_STATUS_CHOICES = [
+        ('auto', 'Автоматическая'),
+        ('manual', 'Ручная'),
+        ('open', 'Открытая (нет выхода)'),
+        ('closed_manual', 'Закрыта вручную'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE,
+                               related_name='work_sessions', verbose_name="Сотрудник")
+    date = models.DateField(verbose_name="Дата", db_index=True)
+    
+    # Временные границы сессии
+    start_time = models.DateTimeField(verbose_name="Время начала", db_index=True)
+    end_time = models.DateTimeField(null=True, blank=True, verbose_name="Время окончания")
+    
+    # Вычисляемые поля
+    duration_seconds = models.PositiveIntegerField(
+        null=True, blank=True, 
+        verbose_name="Длительность (секунды)",
+        help_text="Автоматически рассчитывается"
+    )
+    
+    # Статус и источник
+    status = models.CharField(
+        max_length=20, 
+        choices=SESSION_STATUS_CHOICES, 
+        default='auto',
+        verbose_name="Статус сессии"
+    )
+    
+    # Связь с событиями СКУД
+    source_events = models.ManyToManyField(
+        SKUDEvent, 
+        blank=True,
+        related_name='work_sessions',
+        verbose_name="Исходные события СКУД"
+    )
+    
+    # Ручные корректировки
+    manual_reason = models.TextField(
+        blank=True,
+        verbose_name="Причина ручной корректировки"
+    )
+    corrected_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name="Исправил"
+    )
+    
+    # Системные поля
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+    
+    class Meta:
+        verbose_name = "Рабочая сессия"
+        verbose_name_plural = "Рабочие сессии"
+        ordering = ['-date', '-start_time']
+        indexes = [
+            models.Index(fields=['employee', 'date']),
+            models.Index(fields=['employee', 'start_time']),
+            models.Index(fields=['date', 'status']),
+        ]
+    
+    def __str__(self):
+        if self.end_time:
+            return f"{self.employee.full_name} - {self.date} ({self.start_time.time()} - {self.end_time.time()})"
+        else:
+            return f"{self.employee.full_name} - {self.date} ({self.start_time.time()} - открыта)"
+    
+    def save(self, *args, **kwargs):
+        # Автоматический расчёт длительности
+        if self.start_time and self.end_time:
+            delta = self.end_time - self.start_time
+            self.duration_seconds = int(delta.total_seconds())
+        elif self.start_time and self.status == 'open':
+            # Для открытых сессий считаем до текущего времени
+            delta = timezone.now() - self.start_time
+            self.duration_seconds = int(delta.total_seconds())
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_open(self):
+        """Проверить, открыта ли сессия (нет выхода)"""
+        return self.status == 'open' or self.end_time is None
+    
+    @property
+    def duration_hours(self):
+        """Получить длительность в часах"""
+        if self.duration_seconds:
+            return round(self.duration_seconds / 3600, 2)
+        return 0
+
+
+class WorkDaySummary(models.Model):
+    """Модель агрегированной сводки рабочего времени за день"""
+    
+    SUMMARY_STATUS_CHOICES = [
+        ('present', 'Присутствовал'),
+        ('absent', 'Отсутствовал'),
+        ('excused', 'Уважительная причина'),
+        ('partial', 'Частично присутствовал'),
+        ('problem', 'Проблема (нет выхода)'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE,
+                               related_name='work_day_summaries', verbose_name="Сотрудник")
+    date = models.DateField(verbose_name="Дата", db_index=True)
+    
+    # Временные границы дня
+    first_entry = models.DateTimeField(null=True, blank=True, verbose_name="Первый вход")
+    last_exit = models.DateTimeField(null=True, blank=True, verbose_name="Последний выход")
+    
+    # Агрегированные данные
+    total_seconds_in_office = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Общее время в офисе (секунды)"
+    )
+    expected_seconds = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Ожидаемое время работы (секунды)"
+    )
+    overtime_seconds = models.IntegerField(
+        default=0,
+        verbose_name="Переработка (секунды)"
+    )
+    underwork_seconds = models.IntegerField(
+        default=0,
+        verbose_name="Недоработка (секунды)"
+    )
+    
+    # Статистика сессий
+    sessions_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Количество сессий"
+    )
+    
+    # Статус дня
+    status = models.CharField(
+        max_length=20,
+        choices=SUMMARY_STATUS_CHOICES,
+        default='absent',
+        verbose_name="Статус дня"
+    )
+    
+    # Флаги проблем
+    has_missing_exit = models.BooleanField(
+        default=False,
+        verbose_name="Есть незакрытые сессии"
+    )
+    has_manual_corrections = models.BooleanField(
+        default=False,
+        verbose_name="Есть ручные корректировки"
+    )
+    
+    # Системные поля
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+    
+    class Meta:
+        verbose_name = "Сводка рабочего дня"
+        verbose_name_plural = "Сводки рабочих дней"
+        ordering = ['-date', 'employee']
+        unique_together = ['employee', 'date']
+        indexes = [
+            models.Index(fields=['employee', 'date']),
+            models.Index(fields=['date', 'status']),
+            models.Index(fields=['employee', 'date', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.date} ({self.get_status_display()})"
+    
+    def save(self, *args, **kwargs):
+        # Автоматический расчёт переработки/недоработки
+        if self.total_seconds_in_office and self.expected_seconds:
+            diff = self.total_seconds_in_office - self.expected_seconds
+            if diff > 0:
+                self.overtime_seconds = diff
+                self.underwork_seconds = 0
+            else:
+                self.overtime_seconds = 0
+                self.underwork_seconds = abs(diff)
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def total_hours(self):
+        """Получить общее время в часах"""
+        return round(self.total_seconds_in_office / 3600, 2) if self.total_seconds_in_office else 0
+    
+    @property
+    def expected_hours(self):
+        """Получить ожидаемое время в часах"""
+        return round(self.expected_seconds / 3600, 2) if self.expected_seconds else 0
+    
+    @property
+    def overtime_hours(self):
+        """Получить переработку в часах"""
+        return round(self.overtime_seconds / 3600, 2) if self.overtime_seconds > 0 else 0
+    
+    @property
+    def underwork_hours(self):
+        """Получить недоработку в часах"""
+        return round(self.underwork_seconds / 3600, 2) if self.underwork_seconds > 0 else 0
+
+
+class WorkTimeAuditLog(models.Model):
+    """Модель аудита изменений в системе учёта рабочего времени"""
+    
+    ACTION_CHOICES = [
+        ('create_session', 'Создание сессии'),
+        ('edit_session', 'Редактирование сессии'),
+        ('delete_session', 'Удаление сессии'),
+        ('close_session', 'Закрытие сессии'),
+        ('create_summary', 'Создание сводки'),
+        ('edit_summary', 'Редактирование сводки'),
+        ('reprocess_day', 'Пересчёт дня'),
+        ('bulk_import', 'Массовый импорт'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Что было изменено
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE,
+                               related_name='audit_logs', verbose_name="Сотрудник")
+    date = models.DateField(verbose_name="Дата изменений")
+    
+    # Детали действия
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name="Действие")
+    description = models.TextField(verbose_name="Описание изменений")
+    
+    # Данные изменений
+    old_value = models.JSONField(null=True, blank=True, verbose_name="Старое значение")
+    new_value = models.JSONField(null=True, blank=True, verbose_name="Новое значение")
+    reason = models.TextField(verbose_name="Причина изменения")
+    
+    # Кто и когда
+    changed_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="Изменил"
+    )
+    changed_at = models.DateTimeField(auto_now_add=True, verbose_name="Время изменения")
+    
+    class Meta:
+        verbose_name = "Запись аудита"
+        verbose_name_plural = "Записи аудита"
+        ordering = ['-changed_at']
+        indexes = [
+            models.Index(fields=['employee', 'date']),
+            models.Index(fields=['changed_at']),
+            models.Index(fields=['action']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.action} - {self.date}"

@@ -3,7 +3,10 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.http import HttpResponseRedirect
-from .models import Organization, Department, Division, Employee, Vacation, BusinessTrip, WorkTimeRecord, SKUDDevice, SKUDEvent
+from .models import (
+    Organization, Department, Division, Employee, Vacation, BusinessTrip, 
+    WorkTimeRecord, SKUDDevice, SKUDEvent, WorkSession, WorkDaySummary, WorkTimeAuditLog
+)
 
 
 @admin.register(Organization)
@@ -62,6 +65,40 @@ class SKUDEventInline(admin.TabularInline):
     readonly_fields = ['event_time']
 
 
+class WorkSessionInline(admin.TabularInline):
+    model = WorkSession
+    extra = 0
+    fields = ['date', 'start_time', 'end_time', 'duration_hours_display', 'status']
+    readonly_fields = ['duration_hours_display']
+    
+    def duration_hours_display(self, obj):
+        return f"{obj.duration_hours}ч" if obj.duration_seconds else "—"
+    duration_hours_display.short_description = 'Длительность'
+
+
+class WorkDaySummaryInline(admin.TabularInline):
+    model = WorkDaySummary
+    extra = 0
+    fields = ['date', 'status', 'total_hours_display', 'expected_hours_display', 'overtime_hours_display']
+    readonly_fields = ['total_hours_display', 'expected_hours_display', 'overtime_hours_display']
+    
+    def total_hours_display(self, obj):
+        return f"{obj.total_hours}ч"
+    total_hours_display.short_description = 'Отработано'
+    
+    def expected_hours_display(self, obj):
+        return f"{obj.expected_hours}ч"
+    expected_hours_display.short_description = 'Ожидалось'
+    
+    def overtime_hours_display(self, obj):
+        if obj.overtime_hours > 0:
+            return f"+{obj.overtime_hours}ч"
+        elif obj.underwork_hours > 0:
+            return f"-{obj.underwork_hours}ч"
+        return "—"
+    overtime_hours_display.short_description = 'Переработка/Недоработка'
+
+
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
     list_display = ['full_name', 'employee_id', 'position', 'department', 'division', 'is_active', 'hire_date']
@@ -81,12 +118,16 @@ class EmployeeAdmin(admin.ModelAdmin):
         ('Статус', {
             'fields': ('hire_date', 'termination_date', 'is_active')
         }),
+        ('Учёт рабочего времени', {
+            'fields': ('work_fraction', 'daily_hours'),
+            'description': 'Настройки для расчёта рабочего времени'
+        }),
         ('Системные поля', {
             'fields': ('id', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
-    inlines = [VacationInline, BusinessTripInline, WorkTimeRecordInline]
+    inlines = [VacationInline, BusinessTripInline, WorkTimeRecordInline, WorkSessionInline, WorkDaySummaryInline]
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('organization', 'department', 'division')
@@ -240,6 +281,378 @@ class SKUDEventAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('device', 'employee')
+
+
+@admin.register(WorkSession)
+class WorkSessionAdmin(admin.ModelAdmin):
+    """Админка для рабочих сессий"""
+    list_display = [
+        'employee_name', 'date', 'start_time_display', 'end_time_display', 
+        'duration_display', 'status_display', 'is_open_display'
+    ]
+    list_filter = [
+        'status', 'date', 'employee__department', 'employee__division',
+        ('start_time', admin.DateFieldListFilter),
+    ]
+    search_fields = [
+        'employee__first_name', 'employee__last_name', 'employee__employee_id'
+    ]
+    date_hierarchy = 'date'
+    ordering = ['-date', '-start_time']
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('employee', 'date', 'start_time', 'end_time', 'status')
+        }),
+        ('Расчётные поля', {
+            'fields': ('duration_seconds', 'duration_hours_display'),
+            'classes': ('collapse',)
+        }),
+        ('Ручные корректировки', {
+            'fields': ('manual_reason', 'corrected_by'),
+            'classes': ('collapse',)
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'duration_seconds', 'duration_hours_display'
+    ]
+    
+    actions = ['close_open_sessions', 'mark_as_manual', 'reprocess_sessions']
+    
+    def employee_name(self, obj):
+        return obj.employee.full_name
+    employee_name.short_description = 'Сотрудник'
+    employee_name.admin_order_field = 'employee__last_name'
+    
+    def start_time_display(self, obj):
+        return obj.start_time.strftime('%H:%M:%S')
+    start_time_display.short_description = 'Начало'
+    start_time_display.admin_order_field = 'start_time'
+    
+    def end_time_display(self, obj):
+        return obj.end_time.strftime('%H:%M:%S') if obj.end_time else '—'
+    end_time_display.short_description = 'Окончание'
+    end_time_display.admin_order_field = 'end_time'
+    
+    def duration_display(self, obj):
+        if obj.duration_seconds:
+            hours = obj.duration_seconds // 3600
+            minutes = (obj.duration_seconds % 3600) // 60
+            return f"{hours}ч {minutes}м"
+        return "—"
+    duration_display.short_description = 'Длительность'
+    
+    def status_display(self, obj):
+        colors = {
+            'auto': 'green',
+            'manual': 'blue', 
+            'open': 'red',
+            'closed_manual': 'orange'
+        }
+        color = colors.get(obj.status, 'gray')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_display.short_description = 'Статус'
+    
+    def is_open_display(self, obj):
+        if obj.is_open:
+            return format_html(
+                '<span style="color: red; font-weight: bold;">⚠️ Открыта</span>'
+            )
+        return format_html('<span style="color: green;">✅ Закрыта</span>')
+    is_open_display.short_description = 'Статус сессии'
+    
+    def duration_hours_display(self, obj):
+        return f"{obj.duration_hours} часов" if obj.duration_seconds else "Не рассчитано"
+    duration_hours_display.short_description = 'Длительность (часы)'
+    
+    def close_open_sessions(self, request, queryset):
+        """Действие для закрытия открытых сессий"""
+        from django.utils import timezone
+        
+        closed_count = 0
+        for session in queryset.filter(status='open'):
+            session.end_time = timezone.now()
+            session.status = 'closed_manual'
+            session.manual_reason = f"Закрыто администратором {request.user.username}"
+            session.corrected_by = request.user
+            session.save()
+            closed_count += 1
+        
+        self.message_user(request, f"Закрыто {closed_count} открытых сессий")
+    close_open_sessions.short_description = "Закрыть открытые сессии"
+    
+    def mark_as_manual(self, request, queryset):
+        """Действие для отметки сессий как ручных корректировок"""
+        updated_count = 0
+        for session in queryset:
+            if session.status == 'auto':
+                session.status = 'manual'
+                session.manual_reason = f"Отмечено как ручная корректировка администратором {request.user.username}"
+                session.corrected_by = request.user
+                session.save()
+                updated_count += 1
+        
+        self.message_user(request, f"Отмечено как ручные корректировки: {updated_count} сессий")
+    mark_as_manual.short_description = "Отметить как ручные корректировки"
+    
+    def reprocess_sessions(self, request, queryset):
+        """Действие для пересчёта сессий"""
+        from .work_time_processor import WorkTimeProcessor
+        
+        processor = WorkTimeProcessor()
+        processed_count = 0
+        
+        # Группируем сессии по сотрудникам и датам
+        sessions_by_employee_date = {}
+        for session in queryset:
+            key = (session.employee, session.date)
+            if key not in sessions_by_employee_date:
+                sessions_by_employee_date[key] = []
+            sessions_by_employee_date[key].append(session)
+        
+        # Пересчитываем для каждой уникальной комбинации сотрудник-дата
+        for (employee, date), sessions in sessions_by_employee_date.items():
+            if processor.process_skud_events_for_employee(employee, date):
+                processed_count += 1
+        
+        self.message_user(request, f"Пересчитано {processed_count} дней")
+    reprocess_sessions.short_description = "Пересчитать сессии"
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('employee', 'corrected_by')
+
+
+@admin.register(WorkDaySummary)
+class WorkDaySummaryAdmin(admin.ModelAdmin):
+    """Админка для сводок рабочих дней"""
+    list_display = [
+        'employee_name', 'date', 'status_display', 'total_hours_display',
+        'expected_hours_display', 'overtime_hours_display', 'underwork_hours_display',
+        'sessions_count', 'problem_flags'
+    ]
+    list_filter = [
+        'status', 'has_missing_exit', 'has_manual_corrections',
+        'employee__department', 'employee__division',
+        ('date', admin.DateFieldListFilter),
+    ]
+    search_fields = [
+        'employee__first_name', 'employee__last_name', 'employee__employee_id'
+    ]
+    date_hierarchy = 'date'
+    ordering = ['-date', 'employee']
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('employee', 'date', 'status')
+        }),
+        ('Временные границы', {
+            'fields': ('first_entry', 'last_exit'),
+            'classes': ('collapse',)
+        }),
+        ('Агрегированные данные', {
+            'fields': (
+                'total_seconds_in_office', 'expected_seconds',
+                'overtime_seconds', 'underwork_seconds', 'sessions_count'
+            )
+        }),
+        ('Расчётные поля', {
+            'fields': (
+                'total_hours_display', 'expected_hours_display',
+                'overtime_hours_display', 'underwork_hours_display'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Флаги проблем', {
+            'fields': ('has_missing_exit', 'has_manual_corrections'),
+            'classes': ('collapse',)
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'total_seconds_in_office', 'expected_seconds',
+        'overtime_seconds', 'underwork_seconds', 'sessions_count',
+        'total_hours_display', 'expected_hours_display', 'overtime_hours_display', 'underwork_hours_display'
+    ]
+    
+    actions = ['reprocess_summaries', 'mark_problems_resolved']
+    
+    def employee_name(self, obj):
+        return obj.employee.full_name
+    employee_name.short_description = 'Сотрудник'
+    employee_name.admin_order_field = 'employee__last_name'
+    
+    def status_display(self, obj):
+        colors = {
+            'present': 'green',
+            'absent': 'gray',
+            'excused': 'blue',
+            'partial': 'orange',
+            'problem': 'red'
+        }
+        color = colors.get(obj.status, 'gray')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_display.short_description = 'Статус'
+    
+    def total_hours_display(self, obj):
+        return f"{obj.total_hours}ч"
+    total_hours_display.short_description = 'Отработано'
+    
+    def expected_hours_display(self, obj):
+        return f"{obj.expected_hours}ч"
+    expected_hours_display.short_description = 'Ожидалось'
+    
+    def overtime_hours_display(self, obj):
+        if obj.overtime_hours > 0:
+            return format_html(
+                '<span style="color: green; font-weight: bold;">+{}ч</span>',
+                obj.overtime_hours
+            )
+        return "—"
+    overtime_hours_display.short_description = 'Переработка'
+    
+    def underwork_hours_display(self, obj):
+        if obj.underwork_hours > 0:
+            return format_html(
+                '<span style="color: red; font-weight: bold;">-{}ч</span>',
+                obj.underwork_hours
+            )
+        return "—"
+    underwork_hours_display.short_description = 'Недоработка'
+    
+    def problem_flags(self, obj):
+        flags = []
+        if obj.has_missing_exit:
+            flags.append(format_html('<span style="color: red;">⚠️ Нет выхода</span>'))
+        if obj.has_manual_corrections:
+            flags.append(format_html('<span style="color: orange;">✏️ Ручные правки</span>'))
+        
+        return format_html(' '.join(flags)) if flags else format_html('<span style="color: green;">✅</span>')
+    problem_flags.short_description = 'Проблемы'
+    
+    def reprocess_summaries(self, request, queryset):
+        """Действие для пересчёта сводок"""
+        from .work_time_processor import WorkTimeProcessor
+        
+        processor = WorkTimeProcessor()
+        processed_count = 0
+        
+        for summary in queryset:
+            if processor.process_skud_events_for_employee(summary.employee, summary.date):
+                processed_count += 1
+        
+        self.message_user(request, f"Пересчитано {processed_count} сводок")
+    reprocess_summaries.short_description = "Пересчитать сводки"
+    
+    def mark_problems_resolved(self, request, queryset):
+        """Действие для отметки проблем как решённых"""
+        updated_count = 0
+        for summary in queryset:
+            if summary.has_missing_exit or summary.has_manual_corrections:
+                summary.has_missing_exit = False
+                summary.has_manual_corrections = False
+                summary.save()
+                updated_count += 1
+        
+        self.message_user(request, f"Проблемы отмечены как решённые для {updated_count} сводок")
+    mark_problems_resolved.short_description = "Отметить проблемы как решённые"
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('employee')
+
+
+@admin.register(WorkTimeAuditLog)
+class WorkTimeAuditLogAdmin(admin.ModelAdmin):
+    """Админка для аудита изменений в системе учёта рабочего времени"""
+    list_display = [
+        'employee_name', 'date', 'action_display', 'changed_by_name',
+        'changed_at_display', 'description_short'
+    ]
+    list_filter = [
+        'action', 'date',
+        ('changed_at', admin.DateFieldListFilter),
+        'changed_by',
+    ]
+    search_fields = [
+        'employee__first_name', 'employee__last_name', 'employee__employee_id',
+        'description', 'reason'
+    ]
+    date_hierarchy = 'changed_at'
+    ordering = ['-changed_at']
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('employee', 'date', 'action', 'description')
+        }),
+        ('Детали изменений', {
+            'fields': ('reason', 'old_value', 'new_value'),
+            'classes': ('collapse',)
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'changed_by', 'changed_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = [
+        'id', 'changed_at', 'old_value', 'new_value'
+    ]
+    
+    def employee_name(self, obj):
+        return obj.employee.full_name
+    employee_name.short_description = 'Сотрудник'
+    employee_name.admin_order_field = 'employee__last_name'
+    
+    def action_display(self, obj):
+        colors = {
+            'create_session': 'green',
+            'edit_session': 'blue',
+            'delete_session': 'red',
+            'close_session': 'orange',
+            'create_summary': 'green',
+            'edit_summary': 'blue',
+            'reprocess_day': 'purple',
+            'bulk_import': 'brown'
+        }
+        color = colors.get(obj.action, 'gray')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_action_display()
+        )
+    action_display.short_description = 'Действие'
+    
+    def changed_by_name(self, obj):
+        return obj.changed_by.username if obj.changed_by else 'Система'
+    changed_by_name.short_description = 'Изменил'
+    
+    def changed_at_display(self, obj):
+        return obj.changed_at.strftime('%d.%m.%Y %H:%M:%S')
+    changed_at_display.short_description = 'Время'
+    changed_at_display.admin_order_field = 'changed_at'
+    
+    def description_short(self, obj):
+        return obj.description[:50] + '...' if len(obj.description) > 50 else obj.description
+    description_short.short_description = 'Описание'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('employee', 'changed_by')
 
 
 # Настройка заголовков админки

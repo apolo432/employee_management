@@ -1,0 +1,193 @@
+{% extends "employees/reports_base.html" %}
+
+{% block page_title %}Сводки рабочего времени{% endblock %}
+
+{% block breadcrumb %}<li class="breadcrumb-item active">Сводки</li>{% endblock %}
+
+{% block reports_content %}
+<div class="filter-section">
+    <form method="get" class="row">
+        <div class="col-md-3">
+            <label for="employee_id">Сотрудник</label>
+            <select class="form-control form-control-sm" id="employee_id" name="employee_id">
+                <option value="">Все сотрудники</option>
+                {% for employee in employees %}
+                <option value="{{ employee.id }}" {% if current_filters.employee_id == employee.id|stringformat:"s" %}selected{% endif %}>
+                    {{ employee.full_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <label for="department_id">Отдел</label>
+            <select class="form-control form-control-sm" id="department_id" name="department_id">
+                <option value="">Все отделы</option>
+                {% for dept_id, dept_name in departments %}
+                <option value="{{ dept_id }}" {% if current_filters.department_id == dept_id|stringformat:"s" %}selected{% endif %}>
+                    {{ dept_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <label for="start_date">Дата от</label>
+            <input type="date" class="form-control form-control-sm" id="start_date" name="start_date" 
+                   value="{{ current_filters.start_date }}">
+        </div>
+        
+        <div class="col-md-2">
+            <label for="end_date">Дата до</label>
+            <input type="date" class="form-control form-control-sm" id="end_date" name="end_date" 
+                   value="{{ current_filters.end_date }}">
+        </div>
+        
+        <div class="col-md-2">
+            <label for="status">Статус</label>
+            <select class="form-control form-control-sm" id="status" name="status">
+                <option value="">Все статусы</option>
+                {% for status_key, status_name in status_choices %}
+                <option value="{{ status_key }}" {% if current_filters.status == status_key %}selected{% endif %}>
+                    {{ status_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-1">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary btn-sm btn-block">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="card report-card">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Сводки рабочего времени</h5>
+        <span class="badge badge-light">{{ summaries.paginator.count }} записей</span>
+    </div>
+    <div class="card-body p-0">
+        {% if summaries %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Сотрудник</th>
+                        <th>Дата</th>
+                        <th>Статус</th>
+                        <th>Вход</th>
+                        <th>Выход</th>
+                        <th class="text-center">Отработано</th>
+                        <th class="text-center">Ожидаемо</th>
+                        <th class="text-center">Переработка</th>
+                        <th class="text-center">Сессий</th>
+                        <th class="text-center">Проблемы</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for summary in summaries %}
+                    <tr>
+                        <td>
+                            <strong>{{ summary.employee.full_name }}</strong><br>
+                            <small class="text-muted">{{ summary.employee.employee_id }}</small>
+                        </td>
+                        <td>{{ summary.date|date:"d.m.Y" }}</td>
+                        <td>
+                            <span class="status-badge status-{{ summary.status }}">
+                                {{ summary.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if summary.first_entry %}
+                                {{ summary.first_entry|date:"H:i" }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if summary.last_exit %}
+                                {{ summary.last_exit|date:"H:i" }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ summary.total_hours|floatformat:1 }}ч</td>
+                        <td class="text-center">{{ summary.expected_hours|floatformat:1 }}ч</td>
+                        <td class="text-center">
+                            {% if summary.overtime_hours > 0 %}
+                                <span class="text-success">+{{ summary.overtime_hours|floatformat:1 }}ч</span>
+                            {% elif summary.underwork_hours > 0 %}
+                                <span class="text-danger">-{{ summary.underwork_hours|floatformat:1 }}ч</span>
+                            {% else %}
+                                <span class="text-muted">0ч</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ summary.sessions_count }}</td>
+                        <td class="text-center">
+                            {% if summary.has_missing_exit or summary.has_manual_corrections %}
+                                <span class="problem-flag">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Пагинация -->
+        {% if summaries.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Навигация по страницам">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if summaries.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ summaries.previous_page_number }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in summaries.paginator.page_range %}
+                        {% if num == summaries.number %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > summaries.number|add:'-3' and num < summaries.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if summaries.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ summaries.next_page_number }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Нет данных</h5>
+            <p class="text-muted">По выбранным критериям сводки не найдены</p>
+            <a href="{% url 'reports_dashboard' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Вернуться к отчётам
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "employees/base.html" %}
+
+{% block title %}Система отчётов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    {% block page_title %}Система отчётов{% endblock %}
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{% url 'reports_dashboard' %}">Отчёты</a></li>
+                        {% block breadcrumb %}{% endblock %}
+                    </ol>
+                </nav>
+            </div>
+            
+            {% block reports_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<style>
+.report-card {
+    transition: transform 0.2s;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.report-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.stat-card .stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-card .stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.filter-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table th {
+    background-color: #495057;
+    color: white;
+    border: none;
+    font-weight: 600;
+}
+
+.table td {
+    vertical-align: middle;
+    border-color: #dee2e6;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-present { background-color: #d4edda; color: #155724; }
+.status-absent { background-color: #f8d7da; color: #721c24; }
+.status-excused { background-color: #fff3cd; color: #856404; }
+.status-partial { background-color: #d1ecf1; color: #0c5460; }
+.status-problem { background-color: #f5c6cb; color: #721c24; }
+
+/* Статусы сессий */
+.status-auto { background-color: #d4edda; color: #155724; }
+.status-manual { background-color: #cce5ff; color: #004085; }
+.status-open { background-color: #fff3cd; color: #856404; }
+.status-closed_manual { background-color: #f8d7da; color: #721c24; }
+
+.problem-flag {
+    color: #dc3545;
+    font-weight: bold;
+}
+</style>
+{% endblock %}

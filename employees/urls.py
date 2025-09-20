@@ -2,7 +2,7 @@
 URL configuration for employees app
 """
 
-from django.urls import path
+from django.urls import path, include
 from . import skud_api, frontend_views
 
 urlpatterns = [
@@ -19,6 +19,9 @@ urlpatterns = [
     path('devices/', frontend_views.devices_list, name='devices_list'),
     path('devices/add/', frontend_views.add_device, name='add_device'),
     path('devices/<uuid:device_id>/', frontend_views.device_detail, name='device_detail'),
+    path('devices/<uuid:device_id>/delete/', frontend_views.delete_device, name='delete_device'),
+    path('devices/<uuid:device_id>/deactivate/', frontend_views.deactivate_device, name='deactivate_device'),
+    path('devices/<uuid:device_id>/activate/', frontend_views.activate_device, name='activate_device'),
     path('events/', frontend_views.events_list, name='events_list'),
     path('employees/', frontend_views.employees_list, name='employees_list'),
     path('employees/<uuid:employee_id>/events/', frontend_views.employee_events, name='employee_events'),
@@ -29,4 +32,20 @@ urlpatterns = [
     path('test-device/<uuid:device_id>/', frontend_views.test_device, name='test_device'),
     path('api/status/', frontend_views.api_status, name='api_status'),
     path('check-devices-health/', frontend_views.check_devices_health, name='check_devices_health'),
+    
+    # REST API для системы учёта рабочего времени
+    path('api/worktime/', include('employees.api_urls')),
+    
+    # Отчёты и аналитика
+    path('reports/', frontend_views.reports_dashboard, name='reports_dashboard'),
+    path('reports/monthly/', frontend_views.monthly_report, name='monthly_report'),
+    path('reports/employee/', frontend_views.employee_report, name='employee_report'),
+    path('reports/department/', frontend_views.department_report, name='department_report'),
+    path('reports/summaries/', frontend_views.work_time_summaries, name='work_time_summaries'),
+    path('reports/sessions/', frontend_views.work_sessions, name='work_sessions'),
+    
+    # Аутентификация (временная система логина)
+    path('login/', frontend_views.login_view, name='login_view'),
+    path('logout/', frontend_views.logout_view, name='logout_view'),
+    path('profile/', frontend_views.profile_view, name='profile_view'),
 ]
