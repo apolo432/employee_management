@@ -10,10 +10,163 @@
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
     
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    
     <style>
-        .status-online { color: #28a745; }
-        .status-offline { color: #dc3545; }
-        .status-warning { color: #ffc107; }
+        /* Светлая тема - фиксированная */
+        
+        body {
+            background-color: #ffffff;
+            color: #212529;
+        }
+        
+        .navbar-dark {
+            background-color: #343a40 !important;
+        }
+        
+        .navbar-dark .navbar-nav .nav-link {
+            color: #ffffff !important;
+        }
+        
+        .sidebar {
+            background-color: #f8f9fa;
+        }
+        
+        .main-content {
+            background-color: #ffffff;
+        }
+        
+        .card {
+            background-color: #ffffff;
+            border-color: #dee2e6;
+            color: #212529;
+        }
+        
+        .list-group-item {
+            background-color: transparent;
+            border-color: #dee2e6;
+            color: #6c757d;
+        }
+        
+        .list-group-item:hover {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+        
+        .list-group-item.active {
+            background-color: #1976d2;
+            color: white;
+        }
+        
+        .text-muted {
+            color: #adb5bd !important;
+        }
+        
+        .small {
+            color: #6c757d;
+        }
+        
+        .badge {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+        
+        .alert {
+            background-color: #ffffff;
+            border-color: #dee2e6;
+            color: #212529;
+        }
+        
+        .table {
+            color: #212529;
+        }
+        
+        .table-striped > tbody > tr:nth-of-type(odd) > td {
+            background-color: #f8f9fa;
+        }
+        
+        .form-control {
+            background-color: #ffffff;
+            border-color: #dee2e6;
+            color: #212529;
+        }
+        
+        .form-control:focus {
+            background-color: #ffffff;
+            border-color: #1976d2;
+            color: #212529;
+            box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+        }
+        
+        .btn-outline-secondary {
+            border-color: #dee2e6;
+            color: #212529;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #212529;
+        }
+        
+        .dropdown-menu {
+            background-color: #ffffff;
+            border-color: #dee2e6;
+        }
+        
+        .dropdown-item {
+            color: #212529;
+        }
+        
+        .dropdown-item:hover {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+        
+        .status-online { 
+            color: #28a745; 
+            font-weight: 600;
+        }
+        .status-offline { 
+            color: #dc3545; 
+            font-weight: 600;
+        }
+        .status-warning { 
+            color: #ffc107; 
+            font-weight: 600;
+        }
+        
+        /* Улучшенная контрастность для цветных элементов */
+        .badge.bg-success, .alert-success {
+            color: #fff !important;
+            font-weight: 600;
+        }
+        
+        .badge.bg-danger, .alert-danger {
+            color: #fff !important;
+            font-weight: 600;
+        }
+        
+        .badge.bg-warning, .alert-warning {
+            color: #000 !important;
+            font-weight: 600;
+        }
+        
+        .badge.bg-info, .alert-info {
+            color: #fff !important;
+            font-weight: 600;
+        }
+        
+        .badge.bg-primary {
+            color: #fff !important;
+            font-weight: 600;
+        }
+        
+        .badge.bg-secondary {
+            color: #fff !important;
+            font-weight: 600;
+        }
         
         .card-hover:hover {
             transform: translateY(-2px);
@@ -96,26 +249,26 @@
         }
         
         .sidebar .list-group-item:hover {
-            background-color: #e3f2fd !important;
-            color: #1976d2 !important;
+            background-color: #eff6ff !important;
+            color: #1e40af !important;
             transform: translateX(4px);
-            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.15);
         }
         
-        .sidebar .list-group-item.active {
-            background-color: #1976d2 !important;
+        .sidebar         .list-group-item.active {
+            background-color: #1e40af !important;
             color: white !important;
             transform: translateX(4px);
-            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
-            border-left: 4px solid #0d47a1;
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.3);
+            border-left: 4px solid #1e3a8a;
             font-weight: 600;
         }
         
         .sidebar .list-group-item.active:hover {
-            background-color: #1565c0 !important;
+            background-color: #1e3a8a !important;
             color: white !important;
             transform: translateX(6px);
-            box-shadow: 0 3px 12px rgba(25, 118, 210, 0.4);
+            box-shadow: 0 3px 12px rgba(30, 64, 175, 0.4);
         }
         
         .sidebar .list-group-item.active i {
@@ -159,13 +312,84 @@
             padding: 4px 8px;
             border-radius: 12px;
         }
+        
+        /* Стили для виджета дня рождения */
+        #birthday-widget .card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+        }
+        
+        #birthday-widget .card-title {
+            color: white !important;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .birthday-person {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .birthday-person:last-child {
+            margin-bottom: 0;
+        }
+        
+        .birthday-person.today {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        .birthday-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 2px;
+        }
+        
+        .birthday-department {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+        
+        .birthday-info {
+            font-size: 0.7rem;
+            opacity: 0.9;
+        }
+        
+        .birthday-age {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        .birthday-days {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <!-- Навигация -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'dashboard' %}">
                 <i class="bi bi-shield-check"></i> СКУД Тестовая Панель
@@ -269,27 +493,7 @@
                 <!-- Разделитель -->
                 <hr class="my-3">
                 
-                <!-- Система учёта рабочего времени -->
-                <div class="list-group">
-                    <a href="{% url 'reports_dashboard' %}" class="list-group-item list-group-item-action {% if 'reports' in request.resolver_match.url_name %}active{% endif %}">
-                        <i class="bi bi-graph-up"></i> Отчёты и аналитика
-                    </a>
-                    <a href="{% url 'work_time_summaries' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'work_time_summaries' %}active{% endif %}">
-                        <i class="bi bi-calendar-check"></i> Сводки времени
-                    </a>
-                    <a href="{% url 'work_sessions' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'work_sessions' %}active{% endif %}">
-                        <i class="bi bi-clock"></i> Рабочие сессии
-                    </a>
-                    <a href="{% url 'monthly_report' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'monthly_report' %}active{% endif %}">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> Месячный отчёт
-                    </a>
-                    <a href="{% url 'employee_report' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'employee_report' %}active{% endif %}">
-                        <i class="bi bi-person-check"></i> Отчёт по сотруднику
-                    </a>
-                    <a href="{% url 'department_report' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'department_report' %}active{% endif %}">
-                        <i class="bi bi-building"></i> Отчёт по отделу
-                    </a>
-                </div>
+                
                 
                 <!-- Быстрая статистика -->
                 <div class="mt-4">
@@ -322,6 +526,9 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- Swiper JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    
     <!-- Общие JavaScript функции -->
     <script>
         // Автоматическое обновление статистики
@@ -347,6 +554,93 @@
         // Обновляем статистику каждые 30 секунд
         updateQuickStats();
         setInterval(updateQuickStats, 30000);
+        
+        // Функция для загрузки данных о днях рождения
+        function loadBirthdayWidget() {
+            console.log('Загружаем данные о днях рождения...');
+            
+            fetch('/api/worktime/birthdays/birthday_widget_data/')
+                .then(response => {
+                    console.log('Ответ сервера:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Данные о днях рождения:', data);
+                    
+                    const widget = document.getElementById('birthday-widget');
+                    const content = document.getElementById('birthday-content');
+                    
+                    if (data.has_today_birthdays || data.upcoming_birthdays.length > 0) {
+                        widget.style.display = 'block';
+                        
+                        let html = '';
+                        
+                        // Именинники сегодня
+                        if (data.has_today_birthdays) {
+                            console.log('Именинники сегодня:', data.today_birthdays);
+                            data.today_birthdays.forEach(person => {
+                                html += `
+                                    <div class="birthday-person today">
+                                        <div class="birthday-name">🎉 ${person.full_name}</div>
+                                        <div class="birthday-department">${person.department_name}</div>
+                                        <div class="birthday-info">
+                                            <span class="birthday-age">${person.age} лет</span>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        // Ближайшие дни рождения
+                        if (data.upcoming_birthdays.length > 0) {
+                            console.log('Ближайшие дни рождения:', data.upcoming_birthdays);
+                            data.upcoming_birthdays.forEach(person => {
+                                const daysText = person.days_until_birthday === 1 ? 'завтра' : 
+                                               person.days_until_birthday <= 7 ? `через ${person.days_until_birthday} дн.` :
+                                               `через ${person.days_until_birthday} дн.`;
+                                
+                                html += `
+                                    <div class="birthday-person">
+                                        <div class="birthday-name">${person.full_name}</div>
+                                        <div class="birthday-department">${person.department_name}</div>
+                                        <div class="birthday-info">
+                                            <span class="birthday-days">${daysText}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        content.innerHTML = html;
+                        console.log('Виджет обновлен');
+                    } else {
+                        console.log('Нет именинников, скрываем виджет');
+                        widget.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки данных о днях рождения:', error);
+                    document.getElementById('birthday-widget').style.display = 'none';
+                });
+        }
+        
+        // Загружаем виджет дня рождения при загрузке страницы
+        loadBirthdayWidget();
+        
+        // Обновляем виджет каждую минуту (для тестирования)
+        setInterval(loadBirthdayWidget, 60000);
+        
+        // Принудительное обновление при клике на виджет
+        document.addEventListener('DOMContentLoaded', function() {
+            const birthdayWidget = document.getElementById('birthday-widget');
+            if (birthdayWidget) {
+                birthdayWidget.addEventListener('click', function() {
+                    loadBirthdayWidget();
+                });
+            }
+        });
+        
+        // Удален код переключения тем - используется только светлая тема
         
         // Функция для показа загрузки
         function showLoading(element) {

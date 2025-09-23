@@ -1,220 +1,253 @@
 {% extends 'employees/base.html' %}
 
-{% block title %}Главная - СКУД Тестовая Панель{% endblock %}
+{% block title %}Главная - Система управления сотрудниками{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="bi bi-speedometer2"></i> Обзор системы СКУД</h1>
-    <div>
-        <button class="btn btn-test" onclick="location.reload()">
-            <i class="bi bi-arrow-clockwise"></i> Обновить
+<div class="dashboard-container">
+    <!-- Top Header -->
+    <div class="dashboard-header">
+        <div class="header-left">
+            <button class="hamburger-menu">
+                <i class="bi bi-list"></i>
         </button>
-        <a href="{% url 'quick_test' %}" class="btn btn-outline-primary">
-            <i class="bi bi-play-circle"></i> Быстрый тест
-        </a>
+            <h1>Главная</h1>
+    </div>
+        <div class="header-right">
+            <div class="language-selector">
+                <i class="bi bi-flag"></i>
+                <span>UZ</span>
+</div>
+            <div class="user-info">
+                <span>Test Test admin</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-content">
+        <!-- Top Metrics Cards -->
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="metric-content">
+                    <h3>{{ total_employees }}</h3>
+                    <p>Общее количество сотрудников</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-person-check"></i>
+        </div>
+                <div class="metric-content">
+                    <h3>{{ active_employees }}</h3>
+                    <p>Активные сотрудники</p>
+    </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-calendar-x"></i>
+        </div>
+                <div class="metric-content">
+                    <h3>{{ on_vacation }}</h3>
+                    <p>В отпуске</p>
+    </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="metric-content">
+                    <h3>{{ total_salaries|floatformat:0 }}</h3>
+                    <p>Общая сумма зарплат</p>
+        </div>
     </div>
 </div>
 
-<!-- Статистические карточки -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card stats-card-success card-hover">
-            <div class="card-body text-center">
-                <i class="bi bi-hdd-network fs-1"></i>
-                <h3 class="mt-2">{{ device_stats.total }}</h3>
-                <p class="mb-0">Всего устройств</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card card-hover">
-            <div class="card-body text-center">
-                <i class="bi bi-check-circle fs-1"></i>
-                <h3 class="mt-2">{{ device_stats.active }}</h3>
-                <p class="mb-0">Активных устройств</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card-warning card-hover">
-            <div class="card-body text-center">
-                <i class="bi bi-clock-history fs-1"></i>
-                <h3 class="mt-2">{{ event_stats.total }}</h3>
-                <p class="mb-0">Всего событий</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card-danger card-hover">
-            <div class="card-body text-center">
-                <i class="bi bi-calendar-day fs-1"></i>
-                <h3 class="mt-2">{{ event_stats.today }}</h3>
-                <p class="mb-0">Событий сегодня</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Статус устройств -->
-    <div class="col-md-6">
-        <div class="card device-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="bi bi-hdd-network"></i> Устройства</h5>
-                <button class="btn btn-sm btn-outline-primary" onclick="loadDeviceStatus()">
-                    <i class="bi bi-arrow-clockwise"></i> Проверить
+        <!-- Bottom Panels -->
+        <div class="panels-row">
+            <!-- Left Panel: Employee List -->
+            <div class="panel employee-list-panel">
+                <div class="panel-header">
+                    <h3>Список сотрудников</h3>
+                    <div class="filter-controls">
+                        <select id="sortSelect" class="filter-select">
+                            <option value="time" {% if sort_by == 'time' %}selected{% endif %}>По времени</option>
+                            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>По имени</option>
+                            <option value="status" {% if sort_by == 'status' %}selected{% endif %}>По статусу</option>
+                        </select>
+                        <button id="sortOrderBtn" class="sort-order-btn" data-order="{{ sort_order }}">
+                            <i class="bi bi-arrow-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>
                 </button>
             </div>
-            <div class="card-body" id="deviceStatusContainer">
-                {% if devices %}
-                    {% for device in devices %}
-                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded" id="device-{{ device.id }}">
-                            <div>
-                                <strong>{{ device.name }}</strong><br>
-                                <small class="text-muted">{{ device.ip_address }}</small>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge 
-                                    {% if device.status == 'active' %}bg-success
-                                    {% elif device.status == 'inactive' %}bg-secondary
-                                    {% elif device.status == 'maintenance' %}bg-warning
-                                    {% else %}bg-danger
-                                    {% endif %}">
-                                    {{ device.get_status_display }}
-                                </span>
-                                <br>
-                                <small class="text-muted">
-                                    {% if device.last_communication %}
-                                        {{ device.last_communication|date:"H:i" }}
-                                    {% else %}
-                                        Не проверялось
-                                    {% endif %}
-                                </small>
-                            </div>
+                </div>
+                <div class="panel-content">
+                    <div class="employee-table">
+                        <div class="table-header">
+                            <div class="col-employee">Сотрудник</div>
+                            <div class="col-info">Информация</div>
                         </div>
-                    {% endfor %}
-                    <div class="text-center mt-2">
-                        <button class="btn btn-sm btn-test" onclick="testAllDevices()">
-                            <i class="bi bi-play-circle"></i> Тест всех устройств
-                        </button>
+                        <div class="table-body">
+                            {% for attendance in today_attendance %}
+                            <div class="table-row">
+                                <div class="col-employee">
+                                    <span class="employee-name">{{ attendance.employee.full_name }}</span>
+                            </div>
+                                <div class="col-info">
+                                    {% if attendance.is_present %}
+                                        <span class="time-info">{{ attendance.arrival_time|time:"H:i" }}</span>
+                                        <span class="status-badge status-{{ attendance.status }}">
+                                            {% if attendance.status == 'on_time' %}
+                                                Вовремя
+                                            {% elif attendance.status == 'late' %}
+                                                Опоздал
+                                            {% else %}
+                                                Не пришел
+                                            {% endif %}
+                                </span>
+                                    {% else %}
+                                        <span class="status-badge status-absent">Не пришел</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="table-row">
+                                <div class="col-employee">
+                                    <span class="no-data">Нет данных</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                {% else %}
-                    <p class="text-muted">Устройства не найдены</p>
-                    <a href="{% url 'add_device' %}" class="btn btn-primary btn-sm">
-                        <i class="bi bi-plus"></i> Добавить устройство
-                    </a>
-                {% endif %}
+                </div>
             </div>
+
+            <!-- Right Panel: Gender Statistics and Birthdays -->
+            <div class="right-panels">
+                <!-- Gender Statistics -->
+                <div class="panel gender-panel">
+                    <div class="panel-header">
+                        <h3>Сотрудники по полу</h3>
+                        <div class="month-selector">
+                            <i class="bi bi-calendar"></i>
+                            <span>Выберите месяц</span>
         </div>
     </div>
-    
-    <!-- Последние события -->
-    <div class="col-md-6">
-        <div class="card device-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="bi bi-clock-history"></i> Последние события</h5>
-                <a href="{% url 'events_list' %}" class="btn btn-sm btn-outline-primary">Все события</a>
+                    <div class="panel-content">
+                        <div class="gender-cards">
+                            <div class="gender-card male-card">
+                                <div class="gender-icon">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <div class="gender-content">
+                                    <h3>{{ male_count }}</h3>
+                                    <p>Мужчины</p>
             </div>
-            <div class="card-body">
-                {% if recent_events %}
-                    {% for event in recent_events %}
-                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded event-{{ event.event_type }}">
-                            <div>
-                                <strong>
-                                    {% if event.employee %}
-                                        {{ event.employee.full_name }}
-                                    {% else %}
-                                        Неизвестный
-                                    {% endif %}
-                                </strong><br>
-                                <small class="text-muted">
-                                    {{ event.device.name }} | {{ event.card_number }}
-                                </small>
                             </div>
-                            <div class="text-end">
-                                <span class="badge 
-                                    {% if event.event_type == 'entry' %}bg-success
-                                    {% elif event.event_type == 'exit' %}bg-primary
-                                    {% elif event.event_type == 'denied' %}bg-danger
-                                    {% else %}bg-warning
-                                    {% endif %}">
-                                    {{ event.get_event_type_display }}
-                                </span>
-                                <br>
-                                <small class="text-muted">
-                                    {{ event.event_time|date:"H:i" }}
-                                </small>
+                            <div class="gender-card female-card">
+                                <div class="gender-icon">
+                                    <i class="bi bi-person-dress"></i>
                             </div>
+                                <div class="gender-content">
+                                    <h3>{{ female_count }}</h3>
+                                    <p>Женщины</p>
                         </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted">События не найдены</p>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Быстрые действия -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card device-card">
-            <div class="card-header">
-                <h5><i class="bi bi-lightning"></i> Быстрые действия</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 mb-2">
-                        <a href="{% url 'add_device' %}" class="btn btn-success w-100">
-                            <i class="bi bi-plus-circle"></i> Добавить устройство
-                        </a>
+                <!-- Birthdays Panel -->
+                <div class="panel birthdays-panel">
+                    <div class="panel-header">
+                        <h3>Именинники</h3>
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{% url 'send_test_event' %}" class="btn btn-primary w-100">
-                            <i class="bi bi-send"></i> Отправить тестовое событие
-                        </a>
+                    <div class="panel-content">
+                        {% if birthdays %}
+                            <div class="birthdays-swiper-container">
+                                <div class="swiper-container birthdays-swiper">
+                                    <div class="swiper-wrapper">
+                                        {% for birthday in birthdays %}
+                                        <div class="swiper-slide">
+                                            <div class="birthday-item {% if birthday.is_today %}today{% endif %}">
+                                                <div class="birthday-avatar">
+                                                    {% if birthday.employee.photo %}
+                                                        <img src="{{ birthday.employee.photo.url }}" alt="{{ birthday.employee.full_name }}">
+                                                    {% else %}
+                                                        <i class="bi bi-person-circle"></i>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="birthday-details">
+                                                    <div class="birthday-name">{{ birthday.employee.full_name }}</div>
+                                                    <div class="birthday-date">{{ birthday.birthday_date|date:"d.m" }}</div>
+                                                </div>
+                                                {% if birthday.is_today %}
+                                                    <span class="birthday-badge today">Сегодня!</span>
+                                                {% else %}
+                                                    <span class="birthday-badge upcoming">Через {{ birthday.days_until }} дн.</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{% url 'quick_test' %}" class="btn btn-warning w-100">
-                            <i class="bi bi-play-circle"></i> Быстрый тест
-                        </a>
+                        {% else %}
+                            <div class="no-birthdays">
+                                <i class="bi bi-calendar-x"></i>
+                                <p>Нет именинников в ближайшее время</p>
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="/admin/" target="_blank" class="btn btn-secondary w-100">
-                            <i class="bi bi-gear"></i> Админ-панель
-                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- API Информация -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card device-card">
-            <div class="card-header">
-                <h5><i class="bi bi-code-slash"></i> API Информация</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Основные endpoints:</h6>
-                        <ul class="list-unstyled">
-                            <li><code>GET /api/skud/test/</code> - Тест API</li>
-                            <li><code>POST /api/skud/event/</code> - Прием событий</li>
-                            <li><code>GET /api/skud/status/</code> - Статус системы</li>
-                            <li><code>GET /api/skud/health/</code> - Проверка здоровья</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Формат данных события:</h6>
-                        <pre class="bg-light p-2 small"><code>{
-  "card_number": "EMP001",
-  "event_type": "entry",
-  "timestamp": "2024-01-15T09:30:00"
-}</code></pre>
+        <!-- Additional Info Row -->
+        <div class="additional-info-row">
+            <div class="panel quick-stats-panel">
+                <div class="panel-header">
+                    <h3>Быстрая статистика</h3>
+                </div>
+                <div class="panel-content">
+                    <div class="quick-stats-grid">
+                        <div class="quick-stat-item">
+                            <div class="stat-icon">
+                                <i class="bi bi-clock"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>Среднее время работы</h4>
+                                <p>8.5 часов</p>
+                            </div>
+                        </div>
+                        <div class="quick-stat-item">
+                            <div class="stat-icon">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>Рабочих дней в месяце</h4>
+                                <p>22 дня</p>
+                            </div>
+                        </div>
+                        <div class="quick-stat-item">
+                            <div class="stat-icon">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>Эффективность</h4>
+                                <p>95.2%</p>
+                            </div>
+                        </div>
+                        <div class="quick-stat-item">
+                            <div class="stat-icon">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>Проблемы</h4>
+                                <p>2 случая</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -223,99 +256,53 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+{% include 'employees/dashboard_styles.html' %}
+{% endblock %}
+
 {% block extra_js %}
-{% csrf_token %}
 <script>
-    // Функция для загрузки статуса всех устройств
-    function loadDeviceStatus() {
-        const button = document.querySelector('button[onclick="loadDeviceStatus()"]');
-        const originalText = button.innerHTML;
-        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Проверка...';
-        button.disabled = true;
+document.addEventListener('DOMContentLoaded', function() {
+    // Фильтрация списка сотрудников
+    const sortSelect = document.getElementById('sortSelect');
+    const sortOrderBtn = document.getElementById('sortOrderBtn');
+    
+    function updateSorting() {
+        const sortBy = sortSelect.value;
+        const currentOrder = sortOrderBtn.dataset.order;
+        const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
         
-        fetch('/check-devices-health/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    updateDeviceStatusDisplay(data.devices);
-                    showAlert('success', 'Статус устройств обновлен');
-                } else {
-                    showAlert('danger', 'Ошибка получения статуса устройств');
-                }
-            })
-            .catch(error => {
-                showAlert('danger', 'Ошибка соединения с сервером');
-            })
-            .finally(() => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            });
+        // Обновляем URL с новыми параметрами
+        const url = new URL(window.location);
+        url.searchParams.set('sort', sortBy);
+        url.searchParams.set('order', newOrder);
+        
+        // Перезагружаем страницу с новыми параметрами
+        window.location.href = url.toString();
     }
     
-    // Функция для обновления отображения статуса устройств
-    function updateDeviceStatusDisplay(devices) {
-        for (const [ip, status] of Object.entries(devices)) {
-            // Находим элемент устройства по IP (нужно будет добавить data-ip атрибут)
-            const deviceElement = document.querySelector(`[data-ip="${ip}"]`);
-            if (deviceElement) {
-                const badge = deviceElement.querySelector('.badge');
-                const timeElement = deviceElement.querySelector('small');
-                
-                if (status.is_online) {
-                    badge.className = 'badge bg-success';
-                    badge.textContent = 'Онлайн';
-                } else {
-                    badge.className = 'badge bg-danger';
-                    badge.textContent = 'Офлайн';
-                }
-                
-                timeElement.textContent = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
-            }
+    // Обработчики событий
+    sortSelect.addEventListener('change', updateSorting);
+    sortOrderBtn.addEventListener('click', updateSorting);
+    
+        console.log('Dashboard loaded with filtering');
+        
+        // Инициализация Swiper для именинников
+        if (document.querySelector('.birthdays-swiper')) {
+            const birthdaysSwiper = new Swiper('.birthdays-swiper', {
+                direction: 'vertical',
+                slidesPerView: 3,
+                spaceBetween: 10,
+                loop: true,
+                autoplay: {
+                    delay: 0,
+                    disableOnInteraction: false,
+                },
+                speed: 2000,
+                allowTouchMove: false,
+                centeredSlides: true,
+            });
         }
-    }
-    
-    // Функция для тестирования всех устройств
-    function testAllDevices() {
-        const devices = document.querySelectorAll('[id^="device-"]');
-        devices.forEach((deviceElement, index) => {
-            const deviceId = deviceElement.id.replace('device-', '');
-            setTimeout(() => {
-                testDevice(deviceId, deviceElement);
-            }, index * 1000); // Задержка между тестами
-        });
-    }
-    
-    // Функция для тестирования одного устройства
-    function testDevice(deviceId, element) {
-        const badge = element.querySelector('.badge');
-        const timeElement = element.querySelector('small');
-        
-        // Показываем процесс тестирования
-        badge.textContent = 'Тест...';
-        badge.className = 'badge bg-warning';
-        
-        fetch(`/test-device/${deviceId}/`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    badge.className = 'badge bg-success';
-                    badge.textContent = 'Онлайн';
-                    timeElement.textContent = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
-                } else {
-                    badge.className = 'badge bg-danger';
-                    badge.textContent = 'Офлайн';
-                }
-            })
-            .catch(error => {
-                badge.className = 'badge bg-danger';
-                badge.textContent = 'Ошибка';
-            });
-    }
+    });
 </script>
 {% endblock %}

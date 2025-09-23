@@ -4,6 +4,7 @@
 
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.utils import timezone
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -242,3 +243,33 @@ class ReprocessWorkTimeSerializer(serializers.Serializer):
                 )
         
         return data
+
+
+class BirthdayEmployeeSerializer(serializers.ModelSerializer):
+    """Сериализатор для именинников"""
+    
+    full_name = serializers.ReadOnlyField()
+    age = serializers.ReadOnlyField()
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    division_name = serializers.CharField(source='division.name', read_only=True)
+    days_until_birthday = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Employee
+        fields = [
+            'id', 'last_name', 'first_name', 'middle_name', 'full_name',
+            'birth_date', 'age', 'department_name', 'division_name',
+            'days_until_birthday'
+        ]
+    
+    def get_days_until_birthday(self, obj):
+        """Вычисляет количество дней до дня рождения"""
+        today = timezone.now().date()
+        this_year_birthday = obj.birth_date.replace(year=today.year)
+        
+        # Если день рождения уже прошел в этом году, считаем до следующего года
+        if this_year_birthday < today:
+            next_year_birthday = obj.birth_date.replace(year=today.year + 1)
+            return (next_year_birthday - today).days
+        else:
+            return (this_year_birthday - today).days

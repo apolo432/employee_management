@@ -21,20 +21,124 @@ from .reports import WorkTimeReportGenerator
 
 def dashboard(request):
     """Главная страница с обзором системы"""
-    # Получаем кэшированные данные
-    from .cache_utils import get_cached_dashboard_data
+    from django.db.models import Count, Q, Sum
+    from datetime import datetime, timedelta
     
-    cached_data = get_cached_dashboard_data()
+    today = timezone.now().date()
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # Список устройств для отображения (без проверки соединения)
-    devices = SKUDDevice.objects.filter(is_active=True).order_by('name')
+    # Основные метрики
+    total_employees = Employee.objects.filter(is_active=True).count()
+    active_employees = Employee.objects.filter(is_active=True).count()  # Все активные сотрудники
+    
+    # Сотрудники в отпуске сегодня
+    on_vacation = Employee.objects.filter(
+        is_active=True,
+        vacations__start_date__lte=today,
+        vacations__end_date__gte=today,
+        vacations__status__in=['approved', 'taken']
+    ).distinct().count()
+    
+    # Общая сумма зарплат (пока заглушка, так как нет поля salary)
+    total_salaries = 0  # TODO: добавить поле salary в модель Employee
+    
+    # Сотрудники по полу
+    gender_stats = Employee.objects.filter(is_active=True).values('gender').annotate(count=Count('id'))
+    male_count = next((item['count'] for item in gender_stats if item['gender'] == 'M'), 0)
+    female_count = next((item['count'] for item in gender_stats if item['gender'] == 'F'), 0)
+    
+    # Получаем параметры фильтрации
+    sort_by = request.GET.get('sort', 'time')  # time, name, status
+    sort_order = request.GET.get('order', 'asc')  # asc, desc
+    
+    # Список сотрудников с временем прихода за сегодня
+    today_attendance = []
+    work_sessions_today = WorkSession.objects.filter(
+        date=today,
+        employee__is_active=True
+    ).select_related('employee').order_by('start_time')
+    
+    for session in work_sessions_today:
+        arrival_time = session.start_time.time()
+        is_late = arrival_time > datetime.strptime('09:00', '%H:%M').time()
+        
+        status = 'on_time' if not is_late else 'late'
+        if arrival_time.hour >= 12:  # Если пришел после 12, считаем не пришел
+            status = 'absent'
+        
+        today_attendance.append({
+            'employee': session.employee,
+            'arrival_time': arrival_time,
+            'status': status,
+            'is_present': True
+        })
+    
+    # Сотрудники, которые не пришли сегодня
+    present_employee_ids = [att['employee'].id for att in today_attendance]
+    absent_employees = Employee.objects.filter(
+        is_active=True
+    ).exclude(id__in=present_employee_ids)
+    
+    for emp in absent_employees:
+        today_attendance.append({
+            'employee': emp,
+            'arrival_time': None,
+            'status': 'absent',
+            'is_present': False
+        })
+    
+    
+    # Сортируем по выбранному параметру
+    if sort_by == 'name':
+        today_attendance.sort(key=lambda x: x['employee'].full_name, reverse=(sort_order == 'desc'))
+    elif sort_by == 'status':
+        status_order = {'on_time': 0, 'late': 1, 'absent': 2}
+        today_attendance.sort(key=lambda x: status_order.get(x['status'], 3), reverse=(sort_order == 'desc'))
+    else:  # sort_by == 'time'
+        today_attendance.sort(key=lambda x: x['arrival_time'] or datetime.max.time(), reverse=(sort_order == 'desc'))
+    
+    # Все именинники (сегодня и все остальные)
+    all_birthdays = []
+    
+    # Получаем всех активных сотрудников
+    all_employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    
+    for emp in all_employees:
+        this_year_birthday = emp.birth_date.replace(year=today.year)
+        
+        # Если день рождения уже прошел в этом году, берем следующий год
+        if this_year_birthday < today:
+            next_year_birthday = emp.birth_date.replace(year=today.year + 1)
+            days_until = (next_year_birthday - today).days
+            birthday_date = next_year_birthday
+            is_today = False
+        else:
+            days_until = (this_year_birthday - today).days
+            birthday_date = this_year_birthday
+            is_today = (days_until == 0)
+        
+        all_birthdays.append({
+            'employee': emp,
+            'days_until': days_until,
+            'birthday_date': birthday_date,
+            'is_today': is_today
+        })
+    
+    # Сортируем по количеству дней до дня рождения
+    all_birthdays.sort(key=lambda x: x['days_until'])
     
     context = {
-        'device_stats': cached_data['device_stats'],
-        'event_stats': cached_data['event_stats'],
-        'recent_events': cached_data['recent_events'],
-        'devices': devices,
-        'today': timezone.now().date(),
+        'total_employees': total_employees,
+        'active_employees': active_employees,
+        'on_vacation': on_vacation,
+        'total_salaries': total_salaries,
+        'male_count': male_count,
+        'female_count': female_count,
+        'today_attendance': today_attendance,
+        'birthdays': all_birthdays,
+        'today': today,
+        'sort_by': sort_by,
+        'sort_order': sort_order,
     }
     
     return render(request, 'employees/dashboard.html', context)
@@ -296,17 +400,75 @@ def quick_test(request):
 
 
 def employees_list(request):
-    """Список сотрудников"""
-    employees = Employee.objects.filter(is_active=True).order_by('last_name', 'first_name')
+    """Список сотрудников с поиском и фильтрацией"""
+    from django.db.models import Q
+    
+    # Базовый queryset
+    employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    
+    # Поиск по ФИО
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        employees = employees.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(middle_name__icontains=search_query)
+        )
+    
+    # Фильтр по отделу
+    department_id = request.GET.get('department')
+    if department_id:
+        employees = employees.filter(department_id=department_id)
+    
+    # Фильтр по должности
+    position = request.GET.get('position')
+    if position:
+        employees = employees.filter(position=position)
+    
+    # Фильтр по статусу
+    status = request.GET.get('status')
+    if status == 'active':
+        employees = employees.filter(is_active=True)
+    elif status == 'inactive':
+        employees = employees.filter(is_active=False)
+    
+    # Сортировка
+    sort_by = request.GET.get('sort', 'last_name')
+    sort_order = request.GET.get('order', 'asc')
+    
+    if sort_order == 'desc':
+        sort_by = f'-{sort_by}'
+    
+    employees = employees.order_by(sort_by)
+    
+    # Количество записей на странице
+    per_page = int(request.GET.get('per_page', 20))
+    per_page = min(per_page, 100)  # Максимум 100 записей
     
     # Пагинация
-    paginator = Paginator(employees, 15)
+    paginator = Paginator(employees, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    
+    # Данные для фильтров
+    departments = Employee.objects.filter(
+        is_active=True,
+        department__isnull=False
+    ).values_list('department__id', 'department__name').distinct().order_by('department__name')
+    
+    positions = Employee.POSITION_CHOICES
     
     context = {
         'page_obj': page_obj,
         'employees': page_obj,
+        'departments': departments,
+        'positions': positions,
+        'search_query': search_query,
+        'current_filters': {
+            'department': department_id,
+            'position': position,
+            'status': status,
+        }
     }
     
     return render(request, 'employees/employees_list.html', context)
@@ -421,295 +583,6 @@ def activate_device(request, device_id):
         return redirect('devices_list')
 
 
-# =============================================================================
-# Views для системы отчётов
-# =============================================================================
-
-def reports_dashboard(request):
-    """Главная страница системы отчётов"""
-    from django.db.models import Count, Sum
-    from datetime import date
-    
-    # Статистика за текущий месяц
-    today = date.today()
-    month_start = today.replace(day=1)
-    
-    # Общая статистика
-    total_employees = Employee.objects.filter(is_active=True).count()
-    total_summaries = WorkDaySummary.objects.filter(date__gte=month_start).count()
-    total_sessions = WorkSession.objects.filter(date__gte=month_start).count()
-    
-    # Статистика по статусам
-    status_stats = WorkDaySummary.objects.filter(
-        date__gte=month_start
-    ).values('status').annotate(count=Count('id'))
-    
-    # Статистика по отделам
-    department_stats = WorkDaySummary.objects.filter(
-        date__gte=month_start,
-        employee__department__isnull=False
-    ).values(
-        'employee__department__name'
-    ).annotate(
-        employees=Count('employee', distinct=True),
-        days=Count('id'),
-        total_hours=Sum('total_seconds_in_office')
-    ).order_by('-total_hours')
-    
-    # Русские названия месяцев
-    months_ru = {
-        1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
-        5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
-        9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
-    }
-    
-    context = {
-        'total_employees': total_employees,
-        'total_summaries': total_summaries,
-        'total_sessions': total_sessions,
-        'status_stats': status_stats,
-        'department_stats': department_stats,
-        'current_month': f"{months_ru[today.month]} {today.year}"
-    }
-    
-    return render(request, 'employees/reports_dashboard.html', context)
-
-
-def monthly_report(request):
-    """Страница месячного отчёта"""
-    from django.db.models import Q
-    
-    if request.method == 'POST':
-        year = int(request.POST.get('year'))
-        month = int(request.POST.get('month'))
-        department_id = request.POST.get('department_id') or None
-        employee_id = request.POST.get('employee_id') or None
-        format_type = request.POST.get('format', 'xlsx')
-        
-        generator = WorkTimeReportGenerator()
-        
-        if format_type == 'csv':
-            return generator.generate_monthly_report_csv(year, month, department_id, employee_id)
-        else:
-            return generator.generate_monthly_report_xlsx(year, month, department_id, employee_id)
-    
-    # GET запрос - показываем форму
-    from datetime import date
-    
-    # Получаем доступные годы и месяцы
-    years = range(date.today().year - 2, date.today().year + 1)
-    months = [(i, f'{i:02d}') for i in range(1, 13)]
-    
-    # Получаем отделы для фильтрации
-    departments = Employee.objects.filter(
-        is_active=True,
-        department__isnull=False
-    ).values_list('department__id', 'department__name').distinct().order_by('department__name')
-    
-    # Получаем сотрудников для фильтрации
-    employees = Employee.objects.filter(is_active=True).order_by('last_name', 'first_name')
-    
-    context = {
-        'years': years,
-        'months': months,
-        'departments': departments,
-        'employees': employees,
-        'current_year': date.today().year,
-        'current_month': date.today().month
-    }
-    
-    return render(request, 'employees/monthly_report.html', context)
-
-
-def employee_report(request):
-    """Страница отчёта по сотруднику"""
-    if request.method == 'POST':
-        employee_id = request.POST.get('employee_id')
-        start_date_str = request.POST.get('start_date')
-        end_date_str = request.POST.get('end_date')
-        
-        try:
-            from datetime import datetime
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            
-            generator = WorkTimeReportGenerator()
-            return generator.generate_employee_detailed_report(employee_id, start_date, end_date)
-            
-        except ValueError:
-            messages.error(request, 'Неверный формат даты')
-        except Exception as e:
-            messages.error(request, f'Ошибка при генерации отчёта: {str(e)}')
-    
-    # GET запрос - показываем форму
-    employees = Employee.objects.filter(is_active=True).order_by('last_name', 'first_name')
-    
-    context = {
-        'employees': employees
-    }
-    
-    return render(request, 'employees/employee_report.html', context)
-
-
-def department_report(request):
-    """Страница отчёта по отделу"""
-    if request.method == 'POST':
-        department_id = request.POST.get('department_id')
-        start_date_str = request.POST.get('start_date')
-        end_date_str = request.POST.get('end_date')
-        
-        try:
-            from datetime import datetime
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            
-            generator = WorkTimeReportGenerator()
-            return generator.generate_department_statistics_report(department_id, start_date, end_date)
-            
-        except ValueError:
-            messages.error(request, 'Неверный формат даты')
-        except Exception as e:
-            messages.error(request, f'Ошибка при генерации отчёта: {str(e)}')
-    
-    # GET запрос - показываем форму
-    departments = Employee.objects.filter(
-        is_active=True,
-        department__isnull=False
-    ).values_list('department__id', 'department__name').distinct().order_by('department__name')
-    
-    context = {
-        'departments': departments
-    }
-    
-    return render(request, 'employees/department_report.html', context)
-
-
-def work_time_summaries(request):
-    """Страница просмотра сводок рабочего времени"""
-    from django.db.models import Q
-    
-    # Параметры фильтрации
-    employee_id = request.GET.get('employee_id')
-    department_id = request.GET.get('department_id')
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-    status = request.GET.get('status')
-    
-    # Базовый queryset
-    queryset = WorkDaySummary.objects.select_related(
-        'employee', 'employee__department', 'employee__division'
-    ).order_by('-date', 'employee__last_name')
-    
-    # Применяем фильтры
-    if employee_id:
-        queryset = queryset.filter(employee_id=employee_id)
-    
-    if department_id:
-        queryset = queryset.filter(employee__department_id=department_id)
-    
-    if start_date:
-        queryset = queryset.filter(date__gte=start_date)
-    
-    if end_date:
-        queryset = queryset.filter(date__lte=end_date)
-    
-    if status:
-        queryset = queryset.filter(status=status)
-    
-    # Пагинация
-    paginator = Paginator(queryset, 50)
-    page_number = request.GET.get('page')
-    summaries = paginator.get_page(page_number)
-    
-    # Данные для фильтров
-    employees = Employee.objects.filter(is_active=True).order_by('last_name', 'first_name')
-    departments = Employee.objects.filter(
-        is_active=True,
-        department__isnull=False
-    ).values_list('department__id', 'department__name').distinct().order_by('department__name')
-    
-    status_choices = WorkDaySummary.SUMMARY_STATUS_CHOICES
-    
-    context = {
-        'summaries': summaries,
-        'employees': employees,
-        'departments': departments,
-        'status_choices': status_choices,
-        'current_filters': {
-            'employee_id': employee_id,
-            'department_id': department_id,
-            'start_date': start_date,
-            'end_date': end_date,
-            'status': status
-        }
-    }
-    
-    return render(request, 'employees/work_time_summaries.html', context)
-
-
-def work_sessions(request):
-    """Страница просмотра рабочих сессий"""
-    from django.db.models import Q
-    
-    # Параметры фильтрации
-    employee_id = request.GET.get('employee_id')
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-    status = request.GET.get('status')
-    is_open = request.GET.get('is_open')
-    
-    # Базовый queryset
-    queryset = WorkSession.objects.select_related(
-        'employee', 'corrected_by'
-    ).order_by('-date', '-start_time')
-    
-    # Применяем фильтры
-    if employee_id:
-        queryset = queryset.filter(employee_id=employee_id)
-    
-    if start_date:
-        queryset = queryset.filter(date__gte=start_date)
-    
-    if end_date:
-        queryset = queryset.filter(date__lte=end_date)
-    
-    if status:
-        queryset = queryset.filter(status=status)
-    
-    if is_open == 'true':
-        queryset = queryset.filter(status='open')
-    elif is_open == 'false':
-        queryset = queryset.exclude(status='open')
-    
-    # Пагинация
-    paginator = Paginator(queryset, 50)
-    page_number = request.GET.get('page')
-    sessions = paginator.get_page(page_number)
-    
-    # Данные для фильтров
-    employees = Employee.objects.filter(is_active=True).order_by('last_name', 'first_name')
-    status_choices = WorkSession.SESSION_STATUS_CHOICES
-    
-    context = {
-        'sessions': sessions,
-        'employees': employees,
-        'status_choices': status_choices,
-        'current_filters': {
-            'employee_id': employee_id,
-            'start_date': start_date,
-            'end_date': end_date,
-            'status': status,
-            'is_open': is_open
-        }
-    }
-    
-    return render(request, 'employees/work_sessions.html', context)
-
-
-# =============================================================================
-# Views для аутентификации (временная система логина)
-# =============================================================================
-
 def login_view(request):
     """Страница входа в систему"""
     if request.method == 'POST':
@@ -720,79 +593,20 @@ def login_view(request):
         if user is not None:
             login(request, user)
             messages.success(request, f'Добро пожаловать, {user.first_name or user.username}!')
-            
-            # Перенаправляем на страницу, с которой пришли, или на главную
-            next_url = request.GET.get('next', '/')
-            return redirect(next_url)
+            return redirect('dashboard')
         else:
-            messages.error(request, 'Неверный логин или пароль')
+            messages.error(request, 'Неверные учетные данные')
     
-    context = {
-        'next': request.GET.get('next', '/')
-    }
-    return render(request, 'employees/login.html', context)
+    return render(request, 'employees/login.html')
 
 
 def logout_view(request):
     """Выход из системы"""
     logout(request)
-    messages.info(request, 'Вы успешно вышли из системы')
+    messages.info(request, 'Вы вышли из системы')
     return redirect('login_view')
 
 
-@login_required
 def profile_view(request):
     """Профиль пользователя"""
-    user = request.user
-    
-    # Получаем связанного сотрудника, если есть
-    try:
-        employee = Employee.objects.get(user=user)
-        employee_data = {
-            'full_name': employee.full_name,
-            'employee_id': employee.employee_id,
-            'department': employee.department.name if employee.department else 'Не указан',
-            'position': employee.get_position_display(),
-            'work_fraction': f"{employee.work_fraction * 100:.0f}%",
-            'daily_hours': employee.daily_hours
-        }
-    except Employee.DoesNotExist:
-        employee_data = None
-    
-    # Статистика за текущий месяц
-    today = date.today()
-    month_start = today.replace(day=1)
-    
-    if employee_data:
-        summaries = WorkDaySummary.objects.filter(
-            employee__user=user,
-            date__gte=month_start
-        )
-        
-        total_hours = sum(s.total_hours for s in summaries)
-        expected_hours = sum(s.expected_hours for s in summaries)
-        overtime_hours = sum(s.overtime_hours for s in summaries)
-        
-        work_stats = {
-            'total_days': summaries.count(),
-            'present_days': summaries.filter(status='present').count(),
-            'absent_days': summaries.filter(status='absent').count(),
-            'excused_days': summaries.filter(status='excused').count(),
-            'total_hours': total_hours,
-            'expected_hours': expected_hours,
-            'overtime_hours': overtime_hours,
-            'underwork_hours': max(0, expected_hours - total_hours) if expected_hours > total_hours else 0,
-            'problem_days': summaries.filter(
-                Q(has_missing_exit=True) | Q(has_manual_corrections=True)
-            ).count()
-        }
-    else:
-        work_stats = None
-    
-    context = {
-        'user': user,
-        'employee_data': employee_data,
-        'work_stats': work_stats
-    }
-    
-    return render(request, 'employees/profile.html', context)
+    return render(request, 'employees/profile.html')

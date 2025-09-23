@@ -21,7 +21,8 @@ from .serializers import (
     EmployeeSerializer, WorkSessionSerializer, WorkDaySummarySerializer,
     WorkTimeAuditLogSerializer, SKUDEventSerializer, SKUDDeviceSerializer,
     WorkSessionCreateSerializer, EmployeeWorkTimeStatsSerializer,
-    DepartmentWorkTimeStatsSerializer, ReprocessWorkTimeSerializer
+    DepartmentWorkTimeStatsSerializer, ReprocessWorkTimeSerializer,
+    BirthdayEmployeeSerializer
 )
 from .work_time_processor import WorkTimeProcessor
 
@@ -453,3 +454,223 @@ class SKUDDeviceViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['name', 'serial_number', 'ip_address', 'location']
     ordering_fields = ['name', 'ip_address', 'created_at']
     ordering = ['name']
+
+
+class BirthdayViewSet(viewsets.ViewSet):
+    """ViewSet для получения именинников"""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @action(detail=False, methods=['get'])
+    def today_birthdays(self, request):
+        """Получить именинников на сегодня"""
+        today = timezone.now().date()
+        
+        # Получаем сотрудников с днем рождения сегодня
+        birthday_employees = Employee.objects.filter(
+            is_active=True,
+            birth_date__month=today.month,
+            birth_date__day=today.day
+        ).select_related('department', 'division')
+        
+        serializer = BirthdayEmployeeSerializer(birthday_employees, many=True)
+        
+        return Response({
+            'today_birthdays': serializer.data,
+            'count': birthday_employees.count(),
+            'date': today
+        })
+    
+    @action(detail=False, methods=['get'])
+    def upcoming_birthdays(self, request):
+        """Получить ближайшие дни рождения (максимум 2 сотрудника)"""
+        today = timezone.now().date()
+        limit = int(request.query_params.get('limit', 2))
+        
+        # Получаем всех активных сотрудников
+        employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+        
+        # Создаем список с информацией о днях рождения
+        birthday_info = []
+        for employee in employees:
+            this_year_birthday = employee.birth_date.replace(year=today.year)
+            
+            # Если день рождения уже прошел в этом году, считаем до следующего года
+            if this_year_birthday < today:
+                next_year_birthday = employee.birth_date.replace(year=today.year + 1)
+                days_until = (next_year_birthday - today).days
+                birthday_date = next_year_birthday
+            else:
+                days_until = (this_year_birthday - today).days
+                birthday_date = this_year_birthday
+            
+            birthday_info.append({
+                'employee': employee,
+                'days_until': days_until,
+                'birthday_date': birthday_date
+            })
+        
+        # Сортируем по количеству дней до дня рождения
+        birthday_info.sort(key=lambda x: x['days_until'])
+        
+        # Берем только ближайшие
+        upcoming = birthday_info[:limit]
+        
+        # Сериализуем данные
+        serializer = BirthdayEmployeeSerializer([item['employee'] for item in upcoming], many=True)
+        
+        # Добавляем информацию о днях до дня рождения
+        result_data = []
+        for i, item in enumerate(upcoming):
+            data = serializer.data[i]
+            data['days_until_birthday'] = item['days_until']
+            data['birthday_date'] = item['birthday_date']
+            result_data.append(data)
+        
+        return Response({
+            'upcoming_birthdays': result_data,
+            'count': len(result_data),
+            'today': today
+        })
+    
+    @action(detail=False, methods=['get'])
+    def birthday_widget_data(self, request):
+        """Получить данные для виджета дня рождения"""
+        today = timezone.now().date()
+        
+        # Именинники сегодня
+        today_birthdays = Employee.objects.filter(
+            is_active=True,
+            birth_date__month=today.month,
+            birth_date__day=today.day
+        ).select_related('department', 'division')
+        
+        # Ближайшие дни рождения (максимум 2)
+        employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+        
+        birthday_info = []
+        for employee in employees:
+            this_year_birthday = employee.birth_date.replace(year=today.year)
+            
+            if this_year_birthday < today:
+                next_year_birthday = employee.birth_date.replace(year=today.year + 1)
+                days_until = (next_year_birthday - today).days
+                birthday_date = next_year_birthday
+            else:
+                days_until = (this_year_birthday - today).days
+                birthday_date = this_year_birthday
+            
+            # Пропускаем тех, у кого день рождения сегодня (они уже в today_birthdays)
+            if days_until > 0:
+                birthday_info.append({
+                    'employee': employee,
+                    'days_until': days_until,
+                    'birthday_date': birthday_date
+                })
+        
+        # Сортируем и берем ближайшие
+        birthday_info.sort(key=lambda x: x['days_until'])
+        upcoming_birthdays = birthday_info[:2]
+        
+        # Сериализуем данные
+        today_serializer = BirthdayEmployeeSerializer(today_birthdays, many=True)
+        upcoming_serializer = BirthdayEmployeeSerializer([item['employee'] for item in upcoming_birthdays], many=True)
+        
+        # Формируем результат
+        result = {
+            'has_today_birthdays': today_birthdays.exists(),
+            'today_birthdays': today_serializer.data,
+            'upcoming_birthdays': [],
+            'today': today
+        }
+        
+        # Добавляем информацию о ближайших днях рождения
+        for i, item in enumerate(upcoming_birthdays):
+            data = upcoming_serializer.data[i]
+            data['days_until_birthday'] = item['days_until']
+            data['birthday_date'] = item['birthday_date']
+            result['upcoming_birthdays'].append(data)
+        
+        return Response(result)
+    
+    @action(detail=False, methods=['get'])
+    def analytics_summary(self, request):
+        """Получить краткую сводку аналитики сотрудников"""
+        from django.db.models import Count
+        from collections import defaultdict
+        
+        today = timezone.now().date()
+        
+        # Основные метрики
+        total_employees = Employee.objects.filter(is_active=True).count()
+        
+        # Половой состав
+        gender_stats = Employee.objects.filter(is_active=True).values('gender').annotate(count=Count('id'))
+        gender_data = {
+            'male': next((item['count'] for item in gender_stats if item['gender'] == 'M'), 0),
+            'female': next((item['count'] for item in gender_stats if item['gender'] == 'F'), 0)
+        }
+        
+        # Возрастная структура
+        employees = Employee.objects.filter(is_active=True)
+        ages = [emp.age for emp in employees]
+        avg_age = sum(ages) / len(ages) if ages else 0
+        
+        # Именинники сегодня
+        today_birthdays = Employee.objects.filter(
+            is_active=True,
+            birth_date__month=today.month,
+            birth_date__day=today.day
+        ).select_related('department', 'division')
+        
+        # Ближайшие дни рождения
+        upcoming_birthdays = []
+        for emp in Employee.objects.filter(is_active=True).select_related('department', 'division'):
+            this_year_birthday = emp.birth_date.replace(year=today.year)
+            if this_year_birthday < today:
+                next_year_birthday = emp.birth_date.replace(year=today.year + 1)
+                days_until = (next_year_birthday - today).days
+            else:
+                days_until = (this_year_birthday - today).days
+            
+            if 0 < days_until <= 7:
+                upcoming_birthdays.append({
+                    'employee': emp,
+                    'days_until': days_until
+                })
+        
+        upcoming_birthdays.sort(key=lambda x: x['days_until'])
+        upcoming_birthdays = upcoming_birthdays[:3]  # Топ 3 ближайших
+        
+        # Текучесть за последние 6 месяцев
+        six_months_ago = today - timedelta(days=180)
+        terminated_employees = Employee.objects.filter(
+            is_active=False,
+            termination_date__gte=six_months_ago
+        ).count()
+        
+        turnover_rate = (terminated_employees / total_employees * 100) if total_employees > 0 else 0
+        
+        # Новые сотрудники за последние 6 месяцев
+        new_employees = Employee.objects.filter(
+            is_active=True,
+            hire_date__gte=six_months_ago
+        ).count()
+        
+        result = {
+            'total_employees': total_employees,
+            'gender_data': gender_data,
+            'avg_age': round(avg_age, 1),
+            'today_birthdays': BirthdayEmployeeSerializer(today_birthdays, many=True).data,
+            'upcoming_birthdays': [
+                {
+                    'employee': BirthdayEmployeeSerializer(item['employee']).data,
+                    'days_until': item['days_until']
+                } for item in upcoming_birthdays
+            ],
+            'turnover_rate': round(turnover_rate, 1),
+            'new_employees': new_employees,
+            'today': today
+        }
+        
+        return Response(result)

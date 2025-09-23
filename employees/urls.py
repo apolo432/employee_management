@@ -36,13 +36,6 @@ urlpatterns = [
     # REST API для системы учёта рабочего времени
     path('api/worktime/', include('employees.api_urls')),
     
-    # Отчёты и аналитика
-    path('reports/', frontend_views.reports_dashboard, name='reports_dashboard'),
-    path('reports/monthly/', frontend_views.monthly_report, name='monthly_report'),
-    path('reports/employee/', frontend_views.employee_report, name='employee_report'),
-    path('reports/department/', frontend_views.department_report, name='department_report'),
-    path('reports/summaries/', frontend_views.work_time_summaries, name='work_time_summaries'),
-    path('reports/sessions/', frontend_views.work_sessions, name='work_sessions'),
     
     # Аутентификация (временная система логина)
     path('login/', frontend_views.login_view, name='login_view'),

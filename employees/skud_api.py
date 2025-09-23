@@ -360,3 +360,4 @@ def skud_test_endpoint(request):
             'status': 'error',
             'message': 'Метод не поддерживается'
         }, status=405)
+        

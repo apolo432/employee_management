@@ -18,6 +18,7 @@
                         <input type="text" class="form-control" id="cardNumber" required
                                placeholder="EMP001">
                         <div class="form-text">Введите табельный номер сотрудника</div>
+                        <div id="cardNumberError" class="invalid-feedback" style="display: none;"></div>
                     </div>
                     
                     <div class="mb-3">
@@ -28,17 +29,26 @@
                             <option value="denied">Отказ в доступе</option>
                             <option value="alarm">Тревога</option>
                         </select>
+                        <div id="eventTypeError" class="invalid-feedback" style="display: none;"></div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="timestamp" class="form-label">Время события</label>
                         <input type="datetime-local" class="form-control" id="timestamp">
                         <div class="form-text">Оставьте пустым для текущего времени</div>
+                        <div id="timestampError" class="invalid-feedback" style="display: none;"></div>
                     </div>
                     
                     <button type="button" class="btn btn-primary w-100" onclick="sendTestEvent()">
                         <i class="bi bi-send"></i> Отправить событие
                     </button>
+                    
+                    <!-- Сообщения об успехе/ошибке -->
+                    <div id="resultMessage" class="mt-3" style="display: none;">
+                        <div class="alert" role="alert" style="color: #212529;">
+                            <span id="resultText"></span>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
@@ -99,6 +109,31 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+#resultMessage .alert {
+    color: #212529 !important;
+}
+
+#resultMessage .alert-success {
+    color: #0f5132 !important;
+}
+
+#resultMessage .alert-warning {
+    color: #664d03 !important;
+}
+
+#resultMessage .alert-danger {
+    color: #842029 !important;
+}
+
+#resultText {
+    color: inherit !important;
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
     // Обновление предварительного просмотра JSON
@@ -125,18 +160,88 @@
     }
     
     // Обновляем предварительный просмотр при изменении полей
-    document.getElementById('cardNumber').addEventListener('input', updateJsonPreview);
-    document.getElementById('eventType').addEventListener('change', updateJsonPreview);
-    document.getElementById('timestamp').addEventListener('change', updateJsonPreview);
+    document.getElementById('cardNumber').addEventListener('input', function() {
+        updateJsonPreview();
+        clearFieldError('cardNumber');
+    });
+    document.getElementById('eventType').addEventListener('change', function() {
+        updateJsonPreview();
+        clearFieldError('eventType');
+    });
+    document.getElementById('timestamp').addEventListener('change', function() {
+        updateJsonPreview();
+        clearFieldError('timestamp');
+    });
+    
+    // Функции для показа сообщений рядом с полями
+    function showFieldError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId + 'Error');
+        
+        field.classList.add('is-invalid');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+    
+    function clearFieldError(fieldId) {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId + 'Error');
+        
+        field.classList.remove('is-invalid');
+        errorDiv.style.display = 'none';
+    }
+    
+    function showResultMessage(type, message) {
+        const resultDiv = document.getElementById('resultMessage');
+        const resultText = document.getElementById('resultText');
+        const alertDiv = resultDiv.querySelector('.alert');
+        
+        // Убираем все классы alert
+        alertDiv.className = 'alert';
+        
+        // Добавляем нужный класс и устанавливаем цвет текста
+        if (type === 'success') {
+            alertDiv.classList.add('alert-success');
+            alertDiv.style.setProperty('color', '#0f5132', 'important');
+            resultText.style.setProperty('color', '#0f5132', 'important');
+        } else if (type === 'warning') {
+            alertDiv.classList.add('alert-warning');
+            alertDiv.style.setProperty('color', '#664d03', 'important');
+            resultText.style.setProperty('color', '#664d03', 'important');
+        } else {
+            alertDiv.classList.add('alert-danger');
+            alertDiv.style.setProperty('color', '#842029', 'important');
+            resultText.style.setProperty('color', '#842029', 'important');
+        }
+        
+        resultText.textContent = message;
+        resultDiv.style.display = 'block';
+        
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            resultDiv.style.display = 'none';
+        }, 5000);
+    }
     
     // Переопределяем функцию sendTestEvent для этой страницы
     function sendTestEvent() {
-        const cardNumber = document.getElementById('cardNumber').value;
+        const cardNumber = document.getElementById('cardNumber').value.trim();
         const eventType = document.getElementById('eventType').value;
         let timestamp = document.getElementById('timestamp').value;
         
+        // Очищаем предыдущие ошибки
+        clearFieldError('cardNumber');
+        clearFieldError('eventType');
+        clearFieldError('timestamp');
+        
+        // Валидация
         if (!cardNumber) {
-            showAlert('warning', 'Введите номер карты');
+            showFieldError('cardNumber', 'Введите номер карты');
+            return;
+        }
+        
+        if (!eventType) {
+            showFieldError('eventType', 'Выберите тип события');
             return;
         }
         
@@ -168,17 +273,17 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showAlert('success', data.message);
+                showResultMessage('success', data.message);
                 // Очищаем форму
                 document.getElementById('cardNumber').value = '';
                 document.getElementById('timestamp').value = '';
                 updateJsonPreview();
             } else {
-                showAlert('danger', data.message);
+                showResultMessage('danger', data.message);
             }
         })
         .catch(error => {
-            showAlert('danger', 'Ошибка при отправке события');
+            showResultMessage('danger', 'Ошибка при отправке события');
         })
         .finally(() => {
             // Восстанавливаем кнопку
