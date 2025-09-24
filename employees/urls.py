@@ -37,6 +37,10 @@ urlpatterns = [
     path('api/worktime/', include('employees.api_urls')),
     
     
+    # Контроль прибытия и отбытия
+    path('attendance/', frontend_views.attendance_control, name='attendance_control'),
+    path('attendance/export/', frontend_views.export_attendance_excel, name='export_attendance_excel'),
+    
     # Аутентификация (временная система логина)
     path('login/', frontend_views.login_view, name='login_view'),
     path('logout/', frontend_views.logout_view, name='logout_view'),

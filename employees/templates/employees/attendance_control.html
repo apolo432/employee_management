@@ -1,0 +1,694 @@
+{% extends 'employees/base.html' %}
+{% load static %}
+
+{% block title %}Контроль прибытия и отбытия{% endblock %}
+
+{% block extra_css %}
+<style>
+    .attendance-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 10px;
+    }
+
+    .view-toggle {
+        display: flex;
+        background: white;
+        border-radius: 25px;
+        padding: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .view-toggle button {
+        flex: 1;
+        padding: 12px 24px;
+        border: none;
+        background: transparent;
+        border-radius: 20px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .view-toggle button.active {
+        background: #667eea;
+        color: white;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .filters-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .search-box {
+        position: relative;
+        flex: 1;
+        margin-right: 1rem;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 12px 16px 12px 45px;
+        border: 2px solid #e1e5e9;
+        border-radius: 25px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .search-box .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-excel {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-excel:hover {
+        background: #218838;
+        transform: translateY(-1px);
+    }
+
+    .btn-clear {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-clear:hover {
+        background: #c82333;
+        transform: translateY(-1px);
+    }
+
+    .attendance-table {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .table-header {
+        background: #f8f9fa;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e1e5e9;
+    }
+
+    .table-header h3 {
+        margin: 0;
+        color: #495057;
+        font-weight: 600;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .attendance-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .attendance-table th {
+        background: #f8f9fa;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #e1e5e9;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .attendance-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e1e5e9;
+        vertical-align: middle;
+    }
+
+    .attendance-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .employee-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .employee-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .employee-details h6 {
+        margin: 0;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .employee-details small {
+        color: #6c757d;
+    }
+
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .status-present {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-absent {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .status-late {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-excellent {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-good {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-average {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-poor {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .time-display {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .hours-display {
+        font-weight: 600;
+        color: #28a745;
+    }
+
+    .timeline-bar {
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .timeline-segment {
+        height: 100%;
+        border-radius: 4px;
+        position: absolute;
+    }
+
+    .timeline-green {
+        background: #28a745;
+    }
+
+    .timeline-blue {
+        background: #007bff;
+    }
+
+    .pagination-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e1e5e9;
+    }
+
+    .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .pagination-controls button {
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .pagination-controls button:hover {
+        background: #e9ecef;
+    }
+
+    .pagination-controls button.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .pagination-controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .filter-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 8px 12px;
+        border: 1px solid #e1e5e9;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+    }
+
+    @media (max-width: 768px) {
+        .filters-section {
+            padding: 1rem;
+        }
+        
+        .filter-row {
+            flex-direction: column;
+        }
+        
+        .search-box {
+            margin-right: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .attendance-table th,
+        .attendance-table td {
+            padding: 0.75rem 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="attendance-header text-center">
+        <div class="container">
+            <h1 class="mb-3">Контроль прибытия и отбытия</h1>
+            <p class="mb-0">Мониторинг рабочего времени сотрудников</p>
+        </div>
+    </div>
+
+    <!-- Переключатель вида -->
+    <div class="view-toggle">
+        <button class="{% if view_type == 'daily' %}active{% endif %}" onclick="switchView('daily')">
+            Дневной
+        </button>
+        <button class="{% if view_type == 'monthly' %}active{% endif %}" onclick="switchView('monthly')">
+            Месячный
+        </button>
+    </div>
+
+    <!-- Фильтры и поиск -->
+    <div class="filters-section">
+        <form method="get" id="filterForm">
+            <input type="hidden" name="view" value="{{ view_type }}">
+            
+            <div class="filter-row">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" name="search" value="{{ search_query }}" placeholder="Поиск по имени сотрудника...">
+                </div>
+                
+                <div class="filter-group">
+                    <label>Отдел</label>
+                    <select name="department">
+                        <option value="">Все отделы</option>
+                        {% for dept_id, dept_name in departments %}
+                            <option value="{{ dept_id }}" {% if department_id == dept_id %}selected{% endif %}>
+                                {{ dept_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Статус</label>
+                    <select name="status">
+                        <option value="">Все статусы</option>
+                        {% if view_type == 'daily' %}
+                            <option value="present" {% if status_filter == 'present' %}selected{% endif %}>Присутствовал</option>
+                            <option value="absent" {% if status_filter == 'absent' %}selected{% endif %}>Отсутствовал</option>
+                            <option value="late" {% if status_filter == 'late' %}selected{% endif %}>Опоздал</option>
+                        {% else %}
+                            <option value="excellent" {% if status_filter == 'excellent' %}selected{% endif %}>Отлично</option>
+                            <option value="good" {% if status_filter == 'good' %}selected{% endif %}>Хорошо</option>
+                            <option value="average" {% if status_filter == 'average' %}selected{% endif %}>Удовлетворительно</option>
+                            <option value="poor" {% if status_filter == 'poor' %}selected{% endif %}>Плохо</option>
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Дата</label>
+                    <input type="date" name="date" value="{{ filter_date|date:'Y-m-d' }}">
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="action-buttons">
+                    <button type="button" class="btn-excel" onclick="exportToExcel()">
+                        <i class="fas fa-file-excel"></i>
+                        Excel
+                    </button>
+                    <button type="button" class="btn-clear" onclick="clearFilters()">
+                        <i class="fas fa-broom"></i>
+                        Очистить
+                    </button>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i>
+                    Применить фильтры
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Таблица данных -->
+    <div class="attendance-table">
+        <div class="table-header">
+            <h3>
+                {% if view_type == 'daily' %}
+                    Посещаемость за {{ filter_date|date:"d.m.Y" }}
+                {% else %}
+                    Статистика за {{ filter_date|date:"F Y" }}
+                {% endif %}
+            </h3>
+        </div>
+        
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll">
+                        </th>
+                        <th onclick="sortTable('name')" style="cursor: pointer;">
+                            СОТРУДНИК
+                            <i class="fas fa-sort"></i>
+                        </th>
+                        <th onclick="sortTable('rating')" style="cursor: pointer;">
+                            РЕЙТИНГ
+                            <i class="fas fa-sort"></i>
+                        </th>
+                        {% if view_type == 'daily' %}
+                            <th onclick="sortTable('time')" style="cursor: pointer;">
+                                ВРЕМЯ ПРИХОДА
+                                <i class="fas fa-sort"></i>
+                            </th>
+                            <th>ВРЕМЯ РАБОТЫ</th>
+                        {% else %}
+                            <th onclick="sortTable('hours')" style="cursor: pointer;">
+                                ВРЕМЯ РАБОТЫ
+                                <i class="fas fa-sort"></i>
+                            </th>
+                            <th onclick="sortTable('entries')" style="cursor: pointer;">
+                                КОЛИЧЕСТВО ВХОДОВ
+                                <i class="fas fa-sort"></i>
+                            </th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data in attendance_data %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="employee-checkbox" value="{{ data.employee.id }}">
+                        </td>
+                        <td>
+                            <div class="employee-info">
+                                <div class="employee-avatar">
+                                    {{ data.employee.first_name|first }}{{ data.employee.last_name|first }}
+                                </div>
+                                <div class="employee-details">
+                                    <h6>{{ data.employee.full_name }}</h6>
+                                    <small>{{ data.employee.get_position_display }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ data.status }}">
+                                {% if view_type == 'daily' %}
+                                    {% if data.status == 'present' %}Присутствовал
+                                    {% elif data.status == 'absent' %}Отсутствовал
+                                    {% elif data.status == 'late' %}Опоздал
+                                    {% else %}{{ data.status }}
+                                    {% endif %}
+                                {% else %}
+                                    {% if data.status == 'excellent' %}Отлично
+                                    {% elif data.status == 'good' %}Хорошо
+                                    {% elif data.status == 'average' %}Удовлетворительно
+                                    {% elif data.status == 'poor' %}Плохо
+                                    {% else %}{{ data.status }}
+                                    {% endif %}
+                                {% endif %}
+                            </span>
+                        </td>
+                        {% if view_type == 'daily' %}
+                            <td>
+                                {% if data.arrival_time %}
+                                    <span class="time-display">{{ data.arrival_time|time:"H:i" }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data.total_hours > 0 %}
+                                    <span class="hours-display">{{ data.total_hours|floatformat:1 }} ч</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td>
+                                <span class="hours-display">{{ data.total_work_hours|floatformat:1 }} ч</span>
+                                <small class="text-muted">/ {{ data.total_expected_hours|floatformat:1 }} ч</small>
+                            </td>
+                            <td>
+                                <span class="time-display">{{ data.total_entry_count }}</span>
+                            </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-inbox fa-2x mb-3"></i>
+                                <p>Нет данных для отображения</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Пагинация -->
+        <div class="pagination-info">
+            <div>
+                <select onchange="changePerPage(this.value)" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                    <option value="10" {% if per_page == 10 %}selected{% endif %}>10 записей</option>
+                    <option value="20" {% if per_page == 20 %}selected{% endif %}>20 записей</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50 записей</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100 записей</option>
+                </select>
+                <span class="text-muted ms-2">
+                    Всего сотрудников: {{ total_employees }}
+                </span>
+            </div>
+            
+            <div class="pagination-controls">
+                {% if page_obj.has_previous %}
+                    <button onclick="goToPage({{ page_obj.previous_page_number }})">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                {% else %}
+                    <button disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                {% endif %}
+                
+                <button class="active">{{ page_obj.number }}</button>
+                
+                {% if page_obj.has_next %}
+                    <button onclick="goToPage({{ page_obj.next_page_number }})">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                {% else %}
+                    <button disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchView(viewType) {
+    const form = document.getElementById('filterForm');
+    const viewInput = form.querySelector('input[name="view"]');
+    viewInput.value = viewType;
+    form.submit();
+}
+
+function sortTable(column) {
+    const form = document.getElementById('filterForm');
+    const sortInput = document.createElement('input');
+    sortInput.type = 'hidden';
+    sortInput.name = 'sort';
+    sortInput.value = column;
+    form.appendChild(sortInput);
+    
+    const orderInput = document.createElement('input');
+    orderInput.type = 'hidden';
+    orderInput.name = 'order';
+    orderInput.value = '{{ sort_order }}' === 'asc' ? 'desc' : 'asc';
+    form.appendChild(orderInput);
+    
+    form.submit();
+}
+
+function exportToExcel() {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    
+    // Создаем URL с параметрами
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+        params.append(key, value);
+    }
+    
+    // Открываем ссылку на экспорт
+    window.open(`{% url 'export_attendance_excel' %}?${params.toString()}`, '_blank');
+}
+
+function clearFilters() {
+    const form = document.getElementById('filterForm');
+    form.reset();
+    form.submit();
+}
+
+function changePerPage(value) {
+    const form = document.getElementById('filterForm');
+    const perPageInput = document.createElement('input');
+    perPageInput.type = 'hidden';
+    perPageInput.name = 'per_page';
+    perPageInput.value = value;
+    form.appendChild(perPageInput);
+    form.submit();
+}
+
+function goToPage(page) {
+    const form = document.getElementById('filterForm');
+    const pageInput = document.createElement('input');
+    pageInput.type = 'hidden';
+    pageInput.name = 'page';
+    pageInput.value = page;
+    form.appendChild(pageInput);
+    form.submit();
+}
+
+// Выбор всех сотрудников
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.employee-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+</script>
+{% endblock %}

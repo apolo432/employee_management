@@ -422,6 +422,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="{% url 'attendance_control' %}">
+                            <i class="bi bi-clock"></i> Контроль прибытия
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'quick_test' %}">
                             <i class="bi bi-play-circle"></i> Тесты
                         </a>
@@ -487,6 +492,9 @@
                     </a>
                     <a href="{% url 'employees_list' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'employees_list' or request.resolver_match.url_name == 'employee_events' %}active{% endif %}">
                         <i class="bi bi-people"></i> Сотрудники
+                    </a>
+                    <a href="{% url 'attendance_control' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'attendance_control' %}active{% endif %}">
+                        <i class="bi bi-clock"></i> Контроль прибытия
                     </a>
                 </div>
                 

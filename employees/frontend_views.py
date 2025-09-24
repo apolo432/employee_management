@@ -610,3 +610,394 @@ def logout_view(request):
 def profile_view(request):
     """Профиль пользователя"""
     return render(request, 'employees/profile.html')
+
+
+def attendance_control(request):
+    """Страница контроля прибытия и отбытия"""
+    from django.db.models import Q, Count, Sum, Avg
+    from datetime import datetime, timedelta, date
+    import calendar
+    
+    # Получаем параметры фильтрации
+    view_type = request.GET.get('view', 'daily')  # daily или monthly
+    search_query = request.GET.get('search', '').strip()
+    department_id = request.GET.get('department', '')
+    status_filter = request.GET.get('status', '')
+    date_filter = request.GET.get('date', '')
+    
+    # Определяем дату для фильтрации
+    if date_filter:
+        try:
+            filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+        except ValueError:
+            filter_date = timezone.now().date()
+    else:
+        filter_date = timezone.now().date()
+    
+    # Базовый queryset сотрудников
+    employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    
+    # Поиск по имени
+    if search_query:
+        employees = employees.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(middle_name__icontains=search_query)
+        )
+    
+    # Фильтр по отделу
+    if department_id:
+        employees = employees.filter(department_id=department_id)
+    
+    # Получаем данные о посещаемости
+    attendance_data = []
+    
+    if view_type == 'daily':
+        # Дневной вид - показываем данные за конкретный день
+        for employee in employees:
+            # Получаем рабочие сессии за день
+            work_sessions = WorkSession.objects.filter(
+                employee=employee,
+                date=filter_date
+            ).order_by('start_time')
+            
+            # Получаем сводку за день
+            try:
+                day_summary = WorkDaySummary.objects.get(
+                    employee=employee,
+                    date=filter_date
+                )
+            except WorkDaySummary.DoesNotExist:
+                day_summary = None
+            
+            # Рассчитываем статистику
+            total_hours = 0
+            entry_count = 0
+            arrival_time = None
+            departure_time = None
+            
+            if work_sessions.exists():
+                first_session = work_sessions.first()
+                last_session = work_sessions.last()
+                
+                arrival_time = first_session.start_time.time()
+                if last_session.end_time:
+                    departure_time = last_session.end_time.time()
+                
+                entry_count = work_sessions.count()
+                total_hours = sum(session.duration_hours for session in work_sessions if session.duration_hours)
+            
+            # Определяем статус
+            status = 'absent'
+            if day_summary:
+                status = day_summary.status
+            elif work_sessions.exists():
+                status = 'present'
+            
+            # Применяем фильтр по статусу
+            if status_filter and status != status_filter:
+                continue
+            
+            attendance_data.append({
+                'employee': employee,
+                'arrival_time': arrival_time,
+                'departure_time': departure_time,
+                'total_hours': total_hours,
+                'entry_count': entry_count,
+                'status': status,
+                'work_sessions': work_sessions,
+                'day_summary': day_summary,
+            })
+    
+    else:  # monthly
+        # Месячный вид - показываем статистику за месяц
+        month_start = filter_date.replace(day=1)
+        if filter_date.month == 12:
+            month_end = filter_date.replace(year=filter_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            month_end = filter_date.replace(month=filter_date.month + 1, day=1) - timedelta(days=1)
+        
+        for employee in employees:
+            # Получаем сводки за месяц
+            month_summaries = WorkDaySummary.objects.filter(
+                employee=employee,
+                date__range=[month_start, month_end]
+            )
+            
+            # Рассчитываем общую статистику
+            total_work_hours = sum(s.total_hours for s in month_summaries)
+            total_expected_hours = sum(s.expected_hours for s in month_summaries)
+            total_entry_count = sum(s.sessions_count for s in month_summaries)
+            
+            # Статус на основе количества присутствий
+            present_days = month_summaries.filter(status='present').count()
+            total_work_days = month_summaries.count()
+            
+            if total_work_days == 0:
+                status = 'no_data'
+            elif present_days == total_work_days:
+                status = 'excellent'
+            elif present_days >= total_work_days * 0.8:
+                status = 'good'
+            elif present_days >= total_work_days * 0.6:
+                status = 'average'
+            else:
+                status = 'poor'
+            
+            # Применяем фильтр по статусу
+            if status_filter and status != status_filter:
+                continue
+            
+            attendance_data.append({
+                'employee': employee,
+                'total_work_hours': total_work_hours,
+                'total_expected_hours': total_expected_hours,
+                'total_entry_count': total_entry_count,
+                'present_days': present_days,
+                'total_work_days': total_work_days,
+                'status': status,
+                'month_summaries': month_summaries,
+            })
+    
+    # Сортируем данные
+    sort_by = request.GET.get('sort', 'name')
+    sort_order = request.GET.get('order', 'asc')
+    
+    if sort_by == 'name':
+        attendance_data.sort(key=lambda x: x['employee'].full_name, reverse=(sort_order == 'desc'))
+    elif sort_by == 'hours':
+        attendance_data.sort(key=lambda x: x.get('total_hours', 0) or x.get('total_work_hours', 0), reverse=(sort_order == 'desc'))
+    elif sort_by == 'entries':
+        attendance_data.sort(key=lambda x: x.get('entry_count', 0) or x.get('total_entry_count', 0), reverse=(sort_order == 'desc'))
+    
+    # Пагинация
+    per_page = int(request.GET.get('per_page', 20))
+    paginator = Paginator(attendance_data, per_page)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Данные для фильтров
+    departments = Employee.objects.filter(
+        is_active=True,
+        department__isnull=False
+    ).values_list('department__id', 'department__name').distinct().order_by('department__name')
+    
+    # Статистика для заголовка
+    total_employees = len(attendance_data)
+    present_count = len([d for d in attendance_data if d['status'] in ['present', 'excellent', 'good']])
+    
+    context = {
+        'page_obj': page_obj,
+        'attendance_data': page_obj,
+        'view_type': view_type,
+        'filter_date': filter_date,
+        'search_query': search_query,
+        'department_id': department_id,
+        'status_filter': status_filter,
+        'departments': departments,
+        'total_employees': total_employees,
+        'present_count': present_count,
+        'sort_by': sort_by,
+        'sort_order': sort_order,
+        'per_page': per_page,
+    }
+    
+    return render(request, 'employees/attendance_control.html', context)
+
+
+def export_attendance_excel(request):
+    """Экспорт данных о посещаемости в Excel"""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    from datetime import datetime, timedelta, date
+    from django.db.models import Q
+    
+    # Получаем параметры фильтрации (те же, что и в attendance_control)
+    view_type = request.GET.get('view', 'daily')
+    search_query = request.GET.get('search', '').strip()
+    department_id = request.GET.get('department', '')
+    status_filter = request.GET.get('status', '')
+    date_filter = request.GET.get('date', '')
+    
+    # Определяем дату для фильтрации
+    if date_filter:
+        try:
+            filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+        except ValueError:
+            filter_date = timezone.now().date()
+    else:
+        filter_date = timezone.now().date()
+    
+    # Создаем Excel файл
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Посещаемость_{filter_date.strftime('%Y%m%d')}"
+    
+    # Стили
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Заголовок
+    ws['A1'] = f"Отчет по посещаемости - {filter_date.strftime('%d.%m.%Y')}"
+    ws['A1'].font = Font(bold=True, size=16)
+    ws.merge_cells('A1:F1')
+    
+    # Заголовки колонок
+    if view_type == 'daily':
+        headers = ['Сотрудник', 'Должность', 'Отдел', 'Время прихода', 'Время ухода', 'Часов работы', 'Статус']
+    else:
+        headers = ['Сотрудник', 'Должность', 'Отдел', 'Часов работы', 'Ожидаемо часов', 'Количество входов', 'Статус']
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Получаем данные (используем ту же логику, что и в attendance_control)
+    employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    
+    if search_query:
+        employees = employees.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(middle_name__icontains=search_query)
+        )
+    
+    if department_id:
+        employees = employees.filter(department_id=department_id)
+    
+    row = 4
+    for employee in employees:
+        if view_type == 'daily':
+            # Дневной вид
+            work_sessions = WorkSession.objects.filter(
+                employee=employee,
+                date=filter_date
+            ).order_by('start_time')
+            
+            try:
+                day_summary = WorkDaySummary.objects.get(
+                    employee=employee,
+                    date=filter_date
+                )
+            except WorkDaySummary.DoesNotExist:
+                day_summary = None
+            
+            arrival_time = None
+            departure_time = None
+            total_hours = 0
+            
+            if work_sessions.exists():
+                first_session = work_sessions.first()
+                last_session = work_sessions.last()
+                
+                arrival_time = first_session.start_time.time()
+                if last_session.end_time:
+                    departure_time = last_session.end_time.time()
+                
+                total_hours = sum(session.duration_hours for session in work_sessions if session.duration_hours)
+            
+            status = 'Отсутствовал'
+            if day_summary:
+                status = day_summary.get_status_display()
+            elif work_sessions.exists():
+                status = 'Присутствовал'
+            
+            # Применяем фильтр по статусу
+            if status_filter and status.lower() != status_filter:
+                continue
+            
+            data = [
+                employee.full_name,
+                employee.get_position_display(),
+                employee.department.name,
+                arrival_time.strftime('%H:%M') if arrival_time else '—',
+                departure_time.strftime('%H:%M') if departure_time else '—',
+                f"{total_hours:.1f}" if total_hours > 0 else '—',
+                status
+            ]
+        else:
+            # Месячный вид
+            month_start = filter_date.replace(day=1)
+            if filter_date.month == 12:
+                month_end = filter_date.replace(year=filter_date.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                month_end = filter_date.replace(month=filter_date.month + 1, day=1) - timedelta(days=1)
+            
+            month_summaries = WorkDaySummary.objects.filter(
+                employee=employee,
+                date__range=[month_start, month_end]
+            )
+            
+            total_work_hours = sum(s.total_hours for s in month_summaries)
+            total_expected_hours = sum(s.expected_hours for s in month_summaries)
+            total_entry_count = sum(s.sessions_count for s in month_summaries)
+            
+            present_days = month_summaries.filter(status='present').count()
+            total_work_days = month_summaries.count()
+            
+            if total_work_days == 0:
+                status = 'Нет данных'
+            elif present_days == total_work_days:
+                status = 'Отлично'
+            elif present_days >= total_work_days * 0.8:
+                status = 'Хорошо'
+            elif present_days >= total_work_days * 0.6:
+                status = 'Удовлетворительно'
+            else:
+                status = 'Плохо'
+            
+            # Применяем фильтр по статусу
+            if status_filter and status.lower() != status_filter:
+                continue
+            
+            data = [
+                employee.full_name,
+                employee.get_position_display(),
+                employee.department.name,
+                f"{total_work_hours:.1f}",
+                f"{total_expected_hours:.1f}",
+                str(total_entry_count),
+                status
+            ]
+        
+        # Записываем данные в Excel
+        for col, value in enumerate(data, 1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        row += 1
+    
+    # Автоподбор ширины колонок
+    for column in ws.columns:
+        max_length = 0
+        column_letter = get_column_letter(column[0].column)
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Создаем HTTP ответ
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f"attendance_{filter_date.strftime('%Y%m%d')}_{view_type}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
