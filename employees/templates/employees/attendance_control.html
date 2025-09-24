@@ -6,20 +6,24 @@
 {% block extra_css %}
 <style>
     .attendance-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-        border-radius: 10px;
+        background: white;
+        color: #495057;
+        padding: 1.5rem 0;
+        margin-bottom: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 1px solid #e9ecef;
     }
 
     .view-toggle {
         display: flex;
         background: white;
-        border-radius: 25px;
-        padding: 4px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        padding: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+        overflow: hidden;
     }
 
     .view-toggle button {
@@ -27,24 +31,46 @@
         padding: 12px 24px;
         border: none;
         background: transparent;
-        border-radius: 20px;
+        border-radius: 8px;
         font-weight: 500;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
+        color: #6c757d;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .view-toggle button:hover {
+        background: #f8f9fa;
+        color: #495057;
+        transform: translateY(-1px);
     }
 
     .view-toggle button.active {
-        background: #667eea;
+        background: #007bff;
         color: white;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
+        transform: translateY(-1px);
+    }
+
+    .view-toggle button.active::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        border-radius: 8px;
     }
 
     .filters-section {
         background: white;
         padding: 1.5rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         margin-bottom: 2rem;
+        border: 1px solid #e9ecef;
     }
 
     .search-box {
@@ -78,11 +104,16 @@
 
     .action-buttons {
         display: flex;
-        gap: 10px;
+        gap: 12px;
+    }
+
+    .action-buttons button {
+        position: relative;
+        z-index: 1;
     }
 
     .btn-excel {
-        background: #28a745;
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         color: white;
         border: none;
         padding: 12px 20px;
@@ -91,16 +122,35 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+        position: relative;
+        overflow: hidden;
     }
 
     .btn-excel:hover {
-        background: #218838;
-        transform: translateY(-1px);
+        background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3);
+    }
+
+    .btn-excel::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .btn-excel:hover::before {
+        left: 100%;
     }
 
     .btn-clear {
-        background: #dc3545;
+        background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
         color: white;
         border: none;
         padding: 12px 20px;
@@ -109,19 +159,39 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+        position: relative;
+        overflow: hidden;
     }
 
     .btn-clear:hover {
-        background: #c82333;
-        transform: translateY(-1px);
+        background: linear-gradient(135deg, #c82333 0%, #d63384 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-clear::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .btn-clear:hover::before {
+        left: 100%;
     }
 
     .attendance-table {
         background: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         overflow: hidden;
+        border: 1px solid #e9ecef;
     }
 
     .table-header {
@@ -347,6 +417,20 @@
     }
 
     @media (max-width: 768px) {
+        .attendance-header {
+            padding: 1rem 0;
+        }
+        
+        .attendance-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .attendance-header .d-flex > div:last-child {
+            flex-direction: row;
+            justify-content: space-around;
+        }
+        
         .filters-section {
             padding: 1rem;
         }
@@ -362,11 +446,21 @@
         
         .action-buttons {
             flex-direction: column;
+            gap: 8px;
         }
         
         .attendance-table th,
         .attendance-table td {
             padding: 0.75rem 0.5rem;
+        }
+        
+        .view-toggle {
+            margin-bottom: 1rem;
+        }
+        
+        .view-toggle button {
+            padding: 10px 16px;
+            font-size: 14px;
         }
     }
 </style>
@@ -375,10 +469,24 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Заголовок -->
-    <div class="attendance-header text-center">
+    <div class="attendance-header">
         <div class="container">
-            <h1 class="mb-3">Контроль прибытия и отбытия</h1>
-            <p class="mb-0">Мониторинг рабочего времени сотрудников</p>
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h4 class="mb-1 fw-bold text-dark">Контроль прибытия и отбытия</h4>
+                    <small class="text-muted">Мониторинг рабочего времени сотрудников</small>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-end">
+                        <div class="h5 mb-0 text-primary fw-bold">{{ total_employees }}</div>
+                        <small class="text-muted">Всего сотрудников</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="h5 mb-0 text-success fw-bold">{{ present_count }}</div>
+                        <small class="text-muted">Присутствуют</small>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -620,6 +728,23 @@
 
 <script>
 function switchView(viewType) {
+    // Добавляем плавный переход
+    const buttons = document.querySelectorAll('.view-toggle button');
+    buttons.forEach(btn => {
+        btn.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    });
+    
+    // Обновляем активную кнопку
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const activeButton = document.querySelector(`.view-toggle button[onclick="switchView('${viewType}')"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+    
+    // Отправляем форму
     const form = document.getElementById('filterForm');
     const viewInput = form.querySelector('input[name="view"]');
     viewInput.value = viewType;
