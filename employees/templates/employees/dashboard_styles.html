@@ -56,8 +56,8 @@
 
 .metrics-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
     margin-bottom: 1.5rem;
 }
 
@@ -100,7 +100,11 @@
 }
 
 .metric-card:nth-child(4) .metric-icon {
-    background: linear-gradient(135deg, #1e40af, #2563eb);
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.metric-card:nth-child(5) .metric-icon {
+    background: linear-gradient(135deg, #ef4444, #f87171);
 }
 
 .metric-content h3 {
@@ -530,6 +534,12 @@
 }
 
 /* Responsive */
+@media (max-width: 1400px) {
+    .metrics-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
 @media (max-width: 1200px) {
     .metrics-row {
         grid-template-columns: repeat(2, 1fr);

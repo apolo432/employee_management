@@ -39,31 +39,40 @@
             <div class="metric-card">
                 <div class="metric-icon">
                     <i class="bi bi-person-check"></i>
-        </div>
+                </div>
                 <div class="metric-content">
                     <h3>{{ active_employees }}</h3>
                     <p>Активные сотрудники</p>
-    </div>
+                </div>
             </div>
             <div class="metric-card">
                 <div class="metric-icon">
                     <i class="bi bi-calendar-x"></i>
-        </div>
+                </div>
                 <div class="metric-content">
                     <h3>{{ on_vacation }}</h3>
                     <p>В отпуске</p>
-    </div>
+                </div>
             </div>
             <div class="metric-card">
                 <div class="metric-icon">
-                    <i class="bi bi-currency-dollar"></i>
+                    <i class="bi bi-briefcase"></i>
                 </div>
                 <div class="metric-content">
-                    <h3>{{ total_salaries|floatformat:0 }}</h3>
-                    <p>Общая сумма зарплат</p>
+                    <h3>{{ on_business_trip }}</h3>
+                    <p>В командировке</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-hospital"></i>
+                </div>
+                <div class="metric-content">
+                    <h3>{{ on_sick_leave }}</h3>
+                    <p>Больничный</p>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
 
         <!-- Bottom Panels -->
         <div class="panels-row">

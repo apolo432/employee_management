@@ -112,45 +112,38 @@
         z-index: 1;
     }
 
+    .action-buttons button i {
+        transition: transform 0.2s ease;
+    }
+
+    .action-buttons button:hover i {
+        transform: scale(1.05);
+    }
+
     .btn-excel {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
+        background: white;
+        color: #28a745;
         border: none;
         padding: 12px 20px;
         border-radius: 8px;
         font-weight: 500;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
-        position: relative;
-        overflow: hidden;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        min-width: 100px;
     }
 
     .btn-excel:hover {
-        background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3);
-    }
-
-    .btn-excel::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
-    }
-
-    .btn-excel:hover::before {
-        left: 100%;
+        background: #f8f9fa;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
     .btn-clear {
-        background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+        background: #dc3545;
         color: white;
         border: none;
         padding: 12px 20px;
@@ -158,32 +151,17 @@
         font-weight: 500;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
-        position: relative;
-        overflow: hidden;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        min-width: 100px;
     }
 
     .btn-clear:hover {
-        background: linear-gradient(135deg, #c82333 0%, #d63384 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
-    }
-
-    .btn-clear::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
-    }
-
-    .btn-clear:hover::before {
-        left: 100%;
+        background: #c82333;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
     .attendance-table {
@@ -307,6 +285,11 @@
     .status-poor {
         background: #f8d7da;
         color: #721c24;
+    }
+
+    .status-partial {
+        background: #ffeaa7;
+        color: #6c5ce7;
     }
 
     .time-display {
@@ -531,6 +514,7 @@
                             <option value="present" {% if status_filter == 'present' %}selected{% endif %}>Присутствовал</option>
                             <option value="absent" {% if status_filter == 'absent' %}selected{% endif %}>Отсутствовал</option>
                             <option value="late" {% if status_filter == 'late' %}selected{% endif %}>Опоздал</option>
+                            <option value="partial" {% if status_filter == 'partial' %}selected{% endif %}>Частично присутствовал</option>
                         {% else %}
                             <option value="excellent" {% if status_filter == 'excellent' %}selected{% endif %}>Отлично</option>
                             <option value="good" {% if status_filter == 'good' %}selected{% endif %}>Хорошо</option>
@@ -541,19 +525,24 @@
                 </div>
                 
                 <div class="filter-group">
-                    <label>Дата</label>
-                    <input type="date" name="date" value="{{ filter_date|date:'Y-m-d' }}">
+                    <label>Дата от</label>
+                    <input type="date" name="date_from" value="{{ date_from|date:'Y-m-d' }}">
+                </div>
+                
+                <div class="filter-group">
+                    <label>Дата до</label>
+                    <input type="date" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
                 </div>
             </div>
             
             <div class="d-flex justify-content-between align-items-center">
                 <div class="action-buttons">
                     <button type="button" class="btn-excel" onclick="exportToExcel()">
-                        <i class="fas fa-file-excel"></i>
+                        <i class="fas fa-file-excel" style="font-size: 16px;"></i>
                         Excel
                     </button>
                     <button type="button" class="btn-clear" onclick="clearFilters()">
-                        <i class="fas fa-broom"></i>
+                        <i class="fas fa-eraser" style="font-size: 16px;"></i>
                         Очистить
                     </button>
                 </div>
@@ -571,9 +560,13 @@
         <div class="table-header">
             <h3>
                 {% if view_type == 'daily' %}
-                    Посещаемость за {{ filter_date|date:"d.m.Y" }}
+                    {% if date_from == date_to %}
+                        Посещаемость за {{ date_from|date:"d.m.Y" }}
+                    {% else %}
+                        Посещаемость с {{ date_from|date:"d.m.Y" }} по {{ date_to|date:"d.m.Y" }}
+                    {% endif %}
                 {% else %}
-                    Статистика за {{ filter_date|date:"F Y" }}
+                    Статистика с {{ date_from|date:"d.m.Y" }} по {{ date_to|date:"d.m.Y" }}
                 {% endif %}
             </h3>
         </div>
@@ -590,7 +583,7 @@
                             <i class="fas fa-sort"></i>
                         </th>
                         <th onclick="sortTable('rating')" style="cursor: pointer;">
-                            РЕЙТИНГ
+                            СТАТУС
                             <i class="fas fa-sort"></i>
                         </th>
                         {% if view_type == 'daily' %}
@@ -598,10 +591,14 @@
                                 ВРЕМЯ ПРИХОДА
                                 <i class="fas fa-sort"></i>
                             </th>
-                            <th>ВРЕМЯ РАБОТЫ</th>
+                            <th onclick="sortTable('departure')" style="cursor: pointer;">
+                                ВРЕМЯ УХОДА
+                                <i class="fas fa-sort"></i>
+                            </th>
+                            <th>ВРЕМЯ ПРИСУТСТВИЯ</th>
                         {% else %}
                             <th onclick="sortTable('hours')" style="cursor: pointer;">
-                                ВРЕМЯ РАБОТЫ
+                                ВРЕМЯ ПРИСУТСТВИЯ
                                 <i class="fas fa-sort"></i>
                             </th>
                             <th onclick="sortTable('entries')" style="cursor: pointer;">
@@ -634,6 +631,7 @@
                                     {% if data.status == 'present' %}Присутствовал
                                     {% elif data.status == 'absent' %}Отсутствовал
                                     {% elif data.status == 'late' %}Опоздал
+                                    {% elif data.status == 'partial' %}Частично присутствовал
                                     {% else %}{{ data.status }}
                                     {% endif %}
                                 {% else %}
@@ -650,6 +648,13 @@
                             <td>
                                 {% if data.arrival_time %}
                                     <span class="time-display">{{ data.arrival_time|time:"H:i" }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data.departure_time %}
+                                    <span class="time-display">{{ data.departure_time|time:"H:i" }}</span>
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
@@ -673,7 +678,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-4">
+                        <td colspan="6" class="text-center py-4">
                             <div class="text-muted">
                                 <i class="fas fa-inbox fa-2x mb-3"></i>
                                 <p>Нет данных для отображения</p>
