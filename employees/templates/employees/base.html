@@ -433,6 +433,13 @@
                             <i class="bi bi-play-circle"></i> Тесты
                         </a>
                     </li>
+                    {% if user.is_superuser or user.is_hr or user.is_manager %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'roles_list' %}">
+                            <i class="bi bi-shield-check"></i> Роли и права
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
                 
                 <ul class="navbar-nav">

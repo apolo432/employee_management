@@ -538,7 +538,7 @@ class BirthdayViewSet(viewsets.ViewSet):
         """Получить данные для виджета дня рождения"""
         today = timezone.now().date()
         
-        # Именинники сегодня
+        # Именинники сегодня фильтруем только по правам доступа
         today_birthdays = Employee.objects.filter(
             is_active=True,
             birth_date__month=today.month,

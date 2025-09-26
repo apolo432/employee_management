@@ -1,0 +1,224 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Назначение роли пользователю{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-person-plus"></i> Назначение роли пользователю</h1>
+                <a href="{% url 'users_roles' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Назад к списку
+                </a>
+            </div>
+
+            <div class="row">
+                <!-- Информация о пользователе -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Информация о пользователе</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-3">
+                                <div class="avatar-lg bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center">
+                                    {{ user.first_name|first|default:user.username|first|upper }}
+                                </div>
+                            </div>
+                            <h5 class="text-center">{{ user.get_full_name|default:user.username }}</h5>
+                            <p class="text-center text-muted">@{{ user.username }}</p>
+                            
+                            <hr>
+                            
+                            <div class="mb-2">
+                                <strong>Email:</strong> {{ user.email|default:"—" }}
+                            </div>
+                            <div class="mb-2">
+                                <strong>Статус:</strong> 
+                                {% if user.is_active %}
+                                <span class="badge bg-success">Активен</span>
+                                {% else %}
+                                <span class="badge bg-danger">Неактивен</span>
+                                {% endif %}
+                            </div>
+                            {% if user.is_superuser %}
+                            <div class="mb-2">
+                                <span class="badge bg-warning">Суперпользователь</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Текущие роли -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Текущие роли</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for user_role in current_roles %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <span class="badge bg-primary">{{ user_role.role.name }}</span>
+                                    {% if user_role.scope_type != 'global' %}
+                                    <small class="text-muted">({{ user_role.get_scope_type_display }})</small>
+                                    {% endif %}
+                                </div>
+                                <a href="{% url 'revoke_role' user_role.id %}" class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Вы уверены, что хотите отозвать эту роль?')">
+                                    <i class="bi bi-x-circle"></i>
+                                </a>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted">Нет назначенных ролей</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Форма назначения роли -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Назначить новую роль</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="role_id" class="form-label">Роль <span class="text-danger">*</span></label>
+                                            <select name="role_id" id="role_id" class="form-select" required>
+                                                <option value="">Выберите роль</option>
+                                                {% for role in roles %}
+                                                <option value="{{ role.id }}">{{ role.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="scope_type" class="form-label">Область действия</label>
+                                            <select name="scope_type" id="scope_type" class="form-select">
+                                                <option value="global">Глобальная</option>
+                                                <option value="organization">По организации</option>
+                                                <option value="department">По департаменту</option>
+                                                <option value="division">По отделу</option>
+                                                <option value="employee">По сотруднику</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Область действия -->
+                                <div id="scope_fields" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="organization_id" class="form-label">Организация</label>
+                                                <select name="organization_id" id="organization_id" class="form-select">
+                                                    <option value="">Выберите организацию</option>
+                                                    {% for org in organizations %}
+                                                    <option value="{{ org.id }}">{{ org.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="department_id" class="form-label">Департамент</label>
+                                                <select name="department_id" id="department_id" class="form-select">
+                                                    <option value="">Выберите департамент</option>
+                                                    {% for dept in departments %}
+                                                    <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="division_id" class="form-label">Отдел</label>
+                                                <select name="division_id" id="division_id" class="form-select">
+                                                    <option value="">Выберите отдел</option>
+                                                    {% for div in divisions %}
+                                                    <option value="{{ div.id }}">{{ div.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="employee_id" class="form-label">Сотрудник</label>
+                                                <select name="employee_id" id="employee_id" class="form-select">
+                                                    <option value="">Выберите сотрудника</option>
+                                                    {% for emp in employees %}
+                                                    <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="valid_until" class="form-label">Действует до</label>
+                                            <input type="datetime-local" name="valid_until" id="valid_until" class="form-control">
+                                            <div class="form-text">Оставьте пустым для бессрочного назначения</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="reason" class="form-label">Причина назначения</label>
+                                    <textarea name="reason" id="reason" class="form-control" rows="3" 
+                                              placeholder="Укажите причину назначения роли"></textarea>
+                                </div>
+
+                                <div class="d-flex justify-content-end">
+                                    <a href="{% url 'users_roles' %}" class="btn btn-outline-secondary me-2">Отмена</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check-circle"></i> Назначить роль
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-lg {
+    width: 80px;
+    height: 80px;
+    font-size: 32px;
+    font-weight: bold;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scopeTypeSelect = document.getElementById('scope_type');
+    const scopeFields = document.getElementById('scope_fields');
+    
+    function toggleScopeFields() {
+        if (scopeTypeSelect.value === 'global') {
+            scopeFields.style.display = 'none';
+        } else {
+            scopeFields.style.display = 'block';
+        }
+    }
+    
+    scopeTypeSelect.addEventListener('change', toggleScopeFields);
+    toggleScopeFields(); // Initial call
+});
+</script>
+{% endblock %}

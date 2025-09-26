@@ -49,6 +49,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Middleware для системы ролей и прав доступа
+    'employees.middleware.RoleBasedAccessMiddleware',
+    'employees.middleware.AccessLoggingMiddleware',
+    'employees.middleware.SessionTimeoutMiddleware',
+    'employees.middleware.RoleContextMiddleware',
 ]
 
 ROOT_URLCONF = 'employee_management.urls'
@@ -128,6 +133,52 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# =============================================================================
+# НАСТРОЙКИ СИСТЕМЫ РОЛЕЙ И ПРАВ ДОСТУПА
+# =============================================================================
+
+# Настройки безопасности
+SECURITY_SETTINGS = {
+    'SESSION_TIMEOUT_HOURS': 8,  # Время бездействия сессии в часах
+    'MAX_LOGIN_ATTEMPTS': 5,     # Максимальное количество попыток входа
+    'LOCKOUT_DURATION_MINUTES': 15,  # Время блокировки в минутах
+    'REQUIRE_2FA': False,        # Требовать двухфакторную аутентификацию
+    'PASSWORD_COMPLEXITY': True, # Требовать сложные пароли
+    'AUDIT_LOG_RETENTION_DAYS': 365,  # Хранение логов аудита в днях
+}
+
+# Настройки логирования доступа
+ACCESS_LOG_SETTINGS = {
+    'LOG_ALL_REQUESTS': False,   # Логировать все запросы
+    'LOG_PROTECTED_ONLY': True,  # Логировать только защищенные страницы
+    'LOG_ANONYMOUS': False,      # Логировать анонимных пользователей
+    'LOG_GET_REQUESTS': False,   # Логировать GET запросы
+    'LOG_POST_REQUESTS': True,   # Логировать POST запросы
+    'LOG_API_REQUESTS': True,    # Логировать API запросы
+}
+
+# Настройки ролей по умолчанию
+DEFAULT_ROLE_SETTINGS = {
+    'AUTO_ASSIGN_EMPLOYEE_ROLE': True,  # Автоматически назначать роль "Сотрудник"
+    'AUTO_ASSIGN_SUPERUSER_ROLE': True, # Автоматически назначать роль "Супер-администратор"
+    'DEFAULT_EMPLOYEE_ROLE_SCOPE': 'employee',  # Область действия роли сотрудника
+    'DEFAULT_MANAGER_ROLE_SCOPE': 'department', # Область действия роли руководителя
+}
+
+# Настройки временных прав
+TEMPORARY_PERMISSION_SETTINGS = {
+    'MAX_DURATION_DAYS': 30,     # Максимальная длительность временного права в днях
+    'AUTO_EXPIRE': True,         # Автоматически истекать временные права
+    'NOTIFY_BEFORE_EXPIRE_DAYS': 3,  # Уведомлять за N дней до истечения
+}
+
+# Настройки уведомлений
+NOTIFICATION_SETTINGS = {
+    'EMAIL_NOTIFICATIONS': False,    # Email уведомления
+    'BROWSER_NOTIFICATIONS': True,   # Уведомления в браузере
+    'LOG_NOTIFICATIONS': True,       # Логировать уведомления
+}
 
 # Django REST Framework settings
 REST_FRAMEWORK = {

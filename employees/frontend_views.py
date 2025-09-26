@@ -11,14 +11,20 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.core.paginator import Paginator
 from datetime import datetime, timedelta, date
-from django.db.models import Q
+from django.db.models import Q, Count
 import json
 
 from .models import SKUDDevice, SKUDEvent, Employee, WorkDaySummary, WorkSession
 from .skud_device_communication import SKUDDeviceCommunicator, SKUDEventProcessor
 from .reports import WorkTimeReportGenerator
+from .decorators import (
+    require_login, can_view_employee, can_edit_employee, can_manage_skud_devices,
+    can_view_reports, can_export_data, can_approve_vacation, can_manage_roles
+)
+from .permissions import PermissionChecker
 
 
+@require_login
 def dashboard(request):
     """Главная страница с обзором системы"""
     from django.db.models import Count, Q, Sum
@@ -153,6 +159,8 @@ def dashboard(request):
     return render(request, 'employees/dashboard.html', context)
 
 
+@require_login
+@can_manage_skud_devices
 def devices_list(request):
     """Список СКУД устройств"""
     # Фильтр по статусу активности
@@ -178,6 +186,8 @@ def devices_list(request):
     return render(request, 'employees/devices_list.html', context)
 
 
+@require_login
+@can_manage_skud_devices
 def device_detail(request, device_id):
     """Детальная информация об устройстве"""
     try:
@@ -208,6 +218,7 @@ def device_detail(request, device_id):
         return redirect('devices_list')
 
 
+@require_login
 def events_list(request):
     """Список событий СКУД"""
     # Оптимизированный запрос с select_related
@@ -268,6 +279,8 @@ def test_device(request, device_id):
         })
 
 
+@require_login
+@can_manage_skud_devices
 def add_device(request):
     """Добавление нового устройства"""
     if request.method == 'POST':
@@ -408,12 +421,18 @@ def quick_test(request):
     return render(request, 'employees/quick_test.html')
 
 
+@require_login
 def employees_list(request):
     """Список сотрудников с поиском и фильтрацией"""
     from django.db.models import Q
     
-    # Базовый queryset
-    employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    # Базовый queryset - фильтруем по правам доступа
+    if request.user.is_superuser:
+        employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    else:
+        # Получаем доступных сотрудников через систему ролей
+        accessible_employees = PermissionChecker.get_accessible_employees(request.user)
+        employees = accessible_employees.select_related('department', 'division')
     
     # Поиск по ФИО
     search_query = request.GET.get('search', '').strip()
@@ -483,6 +502,8 @@ def employees_list(request):
     return render(request, 'employees/employees_list.html', context)
 
 
+@require_login
+@can_view_employee
 def employee_events(request, employee_id):
     """События конкретного сотрудника"""
     try:
@@ -507,6 +528,8 @@ def employee_events(request, employee_id):
         return redirect('employees_list')
 
 
+@require_login
+@can_manage_skud_devices
 def delete_device(request, device_id):
     """Удаление СКУД устройства"""
     try:
@@ -542,6 +565,8 @@ def delete_device(request, device_id):
         return redirect('devices_list')
 
 
+@require_login
+@can_manage_skud_devices
 def deactivate_device(request, device_id):
     """Деактивация СКУД устройства (мягкое удаление)"""
     try:
@@ -567,6 +592,8 @@ def deactivate_device(request, device_id):
         return redirect('devices_list')
 
 
+@require_login
+@can_manage_skud_devices
 def activate_device(request, device_id):
     """Активация СКУД устройства"""
     try:
@@ -616,11 +643,179 @@ def logout_view(request):
     return redirect('login_view')
 
 
+@require_login
 def profile_view(request):
     """Профиль пользователя"""
     return render(request, 'employees/profile.html')
 
 
+@require_login
+@can_view_reports
+def reports_dashboard(request):
+    """Дашборд отчетов"""
+    from .reports import WorkTimeReportGenerator
+    from datetime import datetime, date
+    
+    # Получаем текущую дату
+    now = datetime.now()
+    current_year = now.year
+    current_month = now.month
+    
+    # Получаем доступных сотрудников для отчетов
+    if request.user.is_superuser:
+        employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    else:
+        employees = PermissionChecker.get_accessible_employees(request.user)
+    
+    # Статистика для дашборда
+    total_employees = employees.count()
+    active_employees = employees.filter(is_active=True).count()
+    
+    # Получаем статистику по департаментам
+    departments_stats = employees.values('department__name').annotate(
+        count=Count('id')
+    ).order_by('-count')[:5]
+    
+    context = {
+        'current_year': current_year,
+        'current_month': current_month,
+        'total_employees': total_employees,
+        'active_employees': active_employees,
+        'departments_stats': departments_stats,
+        'employees': employees[:10],  # Последние 10 сотрудников
+    }
+    
+    return render(request, 'employees/reports_dashboard.html', context)
+
+
+@require_login
+def work_time_summaries(request):
+    """Сводки рабочего времени"""
+    employee_id = request.GET.get('employee_id')
+    
+    # Если указан employee_id, показываем сводки для конкретного сотрудника
+    if employee_id:
+        try:
+            employee = Employee.objects.get(id=employee_id)
+            # Проверяем права доступа
+            if not PermissionChecker.can_view_employee(request.user, employee):
+                messages.error(request, 'У вас нет прав для просмотра данных этого сотрудника')
+                return redirect('profile_view')
+        except Employee.DoesNotExist:
+            messages.error(request, 'Сотрудник не найден')
+            return redirect('profile_view')
+    else:
+        # Если не указан, показываем для текущего пользователя
+        if hasattr(request.user, 'employee_profile') and request.user.employee_profile:
+            employee = request.user.employee_profile
+        else:
+            messages.error(request, 'У вас нет профиля сотрудника')
+            return redirect('profile_view')
+    
+    # Получаем сводки за последние 30 дней
+    from datetime import timedelta
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=30)
+    
+    summaries = WorkDaySummary.objects.filter(
+        employee=employee,
+        date__range=[start_date, end_date]
+    ).order_by('-date')
+    
+    context = {
+        'employee': employee,
+        'summaries': summaries,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+    
+    return render(request, 'employees/work_time_summaries.html', context)
+
+
+@require_login
+def work_sessions(request):
+    """Сессии рабочего времени"""
+    employee_id = request.GET.get('employee_id')
+    
+    # Если указан employee_id, показываем сессии для конкретного сотрудника
+    if employee_id:
+        try:
+            employee = Employee.objects.get(id=employee_id)
+            # Проверяем права доступа
+            if not PermissionChecker.can_view_employee(request.user, employee):
+                messages.error(request, 'У вас нет прав для просмотра данных этого сотрудника')
+                return redirect('profile_view')
+        except Employee.DoesNotExist:
+            messages.error(request, 'Сотрудник не найден')
+            return redirect('profile_view')
+    else:
+        # Если не указан, показываем для текущего пользователя
+        if hasattr(request.user, 'employee_profile') and request.user.employee_profile:
+            employee = request.user.employee_profile
+        else:
+            messages.error(request, 'У вас нет профиля сотрудника')
+            return redirect('profile_view')
+    
+    # Получаем сессии за последние 7 дней
+    from datetime import timedelta
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=7)
+    
+    sessions = WorkSession.objects.filter(
+        employee=employee,
+        start_time__range=[start_date, end_date]
+    ).order_by('-start_time')
+    
+    context = {
+        'employee': employee,
+        'sessions': sessions,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+    
+    return render(request, 'employees/work_sessions.html', context)
+
+
+@require_login
+def employee_report(request):
+    """Отчет по сотруднику"""
+    # Показываем отчет для текущего пользователя
+    if hasattr(request.user, 'employee_profile') and request.user.employee_profile:
+        employee = request.user.employee_profile
+    else:
+        messages.error(request, 'У вас нет профиля сотрудника')
+        return redirect('profile_view')
+    
+    # Получаем данные за текущий месяц
+    from datetime import datetime
+    now = datetime.now()
+    start_date = now.replace(day=1).date()
+    
+    # Получаем сводки за месяц
+    summaries = WorkDaySummary.objects.filter(
+        employee=employee,
+        date__gte=start_date
+    ).order_by('-date')
+    
+    # Подсчитываем статистику
+    total_days = summaries.count()
+    total_hours = sum(s.total_work_hours for s in summaries if s.total_work_hours)
+    avg_hours = total_hours / total_days if total_days > 0 else 0
+    
+    context = {
+        'employee': employee,
+        'summaries': summaries,
+        'start_date': start_date,
+        'total_days': total_days,
+        'total_hours': total_hours,
+        'avg_hours': avg_hours,
+    }
+    
+    return render(request, 'employees/employee_report.html', context)
+
+
+@require_login
+@can_view_reports
 def attendance_control(request):
     """Страница контроля прибытия и отбытия"""
     from django.db.models import Q, Count, Sum, Avg
@@ -658,8 +853,13 @@ def attendance_control(request):
     if date_from > date_to:
         date_from, date_to = date_to, date_from
     
-    # Базовый queryset сотрудников
-    employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    # Базовый queryset сотрудников - фильтруем по правам доступа
+    if request.user.is_superuser:
+        employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    else:
+        # Получаем доступных сотрудников через систему ролей
+        accessible_employees = PermissionChecker.get_accessible_employees(request.user)
+        employees = accessible_employees.select_related('department', 'division')
     
     # Поиск по имени
     if search_query:
@@ -830,6 +1030,8 @@ def attendance_control(request):
     return render(request, 'employees/attendance_control.html', context)
 
 
+@require_login
+@can_export_data
 def export_attendance_excel(request):
     """Экспорт данных о посещаемости в Excel"""
     import openpyxl
@@ -909,7 +1111,13 @@ def export_attendance_excel(request):
         cell.alignment = Alignment(horizontal='center', vertical='center')
     
     # Получаем данные (используем ту же логику, что и в attendance_control)
-    employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    # Фильтруем по правам доступа
+    if request.user.is_superuser:
+        employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
+    else:
+        # Получаем доступных сотрудников через систему ролей
+        accessible_employees = PermissionChecker.get_accessible_employees(request.user)
+        employees = accessible_employees.select_related('department', 'division')
     
     if search_query:
         employees = employees.filter(

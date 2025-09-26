@@ -1,0 +1,173 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Управление ролями пользователей{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-people"></i> Управление ролями пользователей</h1>
+                <div>
+                    <a href="{% url 'roles_list' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-shield-check"></i> Роли
+                    </a>
+                    <a href="{% url 'access_logs' %}" class="btn btn-outline-info">
+                        <i class="bi bi-list-check"></i> Логи доступа
+                    </a>
+                </div>
+            </div>
+
+            <!-- Фильтры -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Поиск пользователя</label>
+                            <input type="text" name="search" id="search" class="form-control" 
+                                   value="{{ current_filters.search }}" placeholder="Имя, email, username">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="role" class="form-label">Роль</label>
+                            <select name="role" id="role" class="form-select">
+                                <option value="">Все роли</option>
+                                {% for role in roles %}
+                                <option value="{{ role.id }}" {% if current_filters.role == role.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ role.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="bi bi-search"></i> Фильтровать
+                            </button>
+                            <a href="{% url 'users_roles' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Сбросить
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Список пользователей -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Пользователи ({{ page_obj.paginator.count }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Пользователь</th>
+                                    <th>Email</th>
+                                    <th>Роли</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
+                                                {{ user.first_name|first|default:user.username|first|upper }}
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">{{ user.get_full_name|default:user.username }}</h6>
+                                                <small class="text-muted">@{{ user.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ user.email|default:"—" }}</td>
+                                    <td>
+                                        {% for user_role in user.user_roles.all %}
+                                            {% if user_role.is_active %}
+                                            <span class="badge bg-primary me-1">
+                                                {{ user_role.role.name }}
+                                                {% if user_role.scope_type != 'global' %}
+                                                <small>({{ user_role.get_scope_type_display }})</small>
+                                                {% endif %}
+                                            </span>
+                                            {% endif %}
+                                        {% empty %}
+                                        <span class="text-muted">Нет ролей</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if user.is_active %}
+                                        <span class="badge bg-success">Активен</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Неактивен</span>
+                                        {% endif %}
+                                        {% if user.is_superuser %}
+                                        <span class="badge bg-warning">Суперпользователь</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'assign_role' user.id %}" class="btn btn-outline-primary" title="Назначить роль">
+                                                <i class="bi bi-plus-circle"></i>
+                                            </a>
+                                            <a href="{% url 'user_permissions' user.id %}" class="btn btn-outline-info" title="Просмотр прав">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="bi bi-info-circle"></i> Пользователи не найдены
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Пагинация -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Навигация по страницам" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}">Первая</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}">Предыдущая</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}">Следующая</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}">Последняя</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    font-weight: bold;
+}
+</style>
+{% endblock %}

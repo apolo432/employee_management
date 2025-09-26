@@ -273,3 +273,4 @@ class BirthdayEmployeeSerializer(serializers.ModelSerializer):
             return (next_year_birthday - today).days
         else:
             return (this_year_birthday - today).days
+

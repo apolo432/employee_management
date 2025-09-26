@@ -3,7 +3,7 @@ URL configuration for employees app
 """
 
 from django.urls import path, include
-from . import skud_api, frontend_views
+from . import skud_api, frontend_views, role_views
 
 urlpatterns = [
     # СКУД API endpoints
@@ -41,8 +41,27 @@ urlpatterns = [
     path('attendance/', frontend_views.attendance_control, name='attendance_control'),
     path('attendance/export/', frontend_views.export_attendance_excel, name='export_attendance_excel'),
     
+    # Отчеты
+    path('reports/', frontend_views.reports_dashboard, name='reports_dashboard'),
+    
+    # Рабочее время
+    path('work-time/summaries/', frontend_views.work_time_summaries, name='work_time_summaries'),
+    path('work-time/sessions/', frontend_views.work_sessions, name='work_sessions'),
+    path('work-time/report/', frontend_views.employee_report, name='employee_report'),
+    
     # Аутентификация (временная система логина)
     path('login/', frontend_views.login_view, name='login_view'),
     path('logout/', frontend_views.logout_view, name='logout_view'),
     path('profile/', frontend_views.profile_view, name='profile_view'),
+    
+    # Управление ролями и правами доступа
+    path('roles/', role_views.roles_list, name='roles_list'),
+    path('roles/<uuid:role_id>/', role_views.role_detail, name='role_detail'),
+    path('users-roles/', role_views.users_roles, name='users_roles'),
+    path('users-roles/assign/<int:user_id>/', role_views.assign_role, name='assign_role'),
+    path('users-roles/revoke/<uuid:user_role_id>/', role_views.revoke_role, name='revoke_role'),
+    path('access-logs/', role_views.access_logs, name='access_logs'),
+    path('role-statistics/', role_views.role_statistics, name='role_statistics'),
+    path('user-permissions/<int:user_id>/', role_views.user_permissions, name='user_permissions'),
+    path('temporary-permissions/', role_views.temporary_permissions, name='temporary_permissions'),
 ]

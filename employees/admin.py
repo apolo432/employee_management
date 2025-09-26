@@ -5,7 +5,8 @@ from django.utils.safestring import mark_safe
 from django.http import HttpResponseRedirect
 from .models import (
     Organization, Department, Division, Employee, Vacation, BusinessTrip, 
-    WorkTimeRecord, SKUDDevice, SKUDEvent, WorkSession, WorkDaySummary, WorkTimeAuditLog
+    WorkTimeRecord, SKUDDevice, SKUDEvent, WorkSession, WorkDaySummary, WorkTimeAuditLog,
+    Role, Permission, RolePermission, UserRole, AccessLog, TemporaryPermission
 )
 
 
@@ -653,6 +654,194 @@ class WorkTimeAuditLogAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('employee', 'changed_by')
+
+
+# =============================================================================
+# АДМИНКИ ДЛЯ СИСТЕМЫ РОЛЕЙ И ПРАВ ДОСТУПА
+# =============================================================================
+
+class RolePermissionInline(admin.TabularInline):
+    model = RolePermission
+    extra = 0
+    fields = ['permission']
+    autocomplete_fields = ['permission']
+
+
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    list_display = ['name', 'role_type', 'is_system_role', 'is_active', 'permissions_count', 'users_count', 'created_at']
+    list_filter = ['role_type', 'is_system_role', 'is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'description', 'role_type', 'is_active')
+        }),
+        ('Системные настройки', {
+            'fields': ('is_system_role',),
+            'description': 'Системные роли нельзя удалять или изменять'
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    inlines = [RolePermissionInline]
+    
+    def permissions_count(self, obj):
+        return obj.role_permissions.count()
+    permissions_count.short_description = 'Количество прав'
+    
+    def users_count(self, obj):
+        return obj.user_roles.filter(is_active=True).count()
+    users_count.short_description = 'Пользователей'
+
+
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'codename', 'app_label', 'model_name', 'permission_type', 'is_active', 'roles_count']
+    list_filter = ['app_label', 'model_name', 'permission_type', 'is_active', 'created_at']
+    search_fields = ['name', 'codename', 'description']
+    readonly_fields = ['id', 'created_at']
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'codename', 'description')
+        }),
+        ('Классификация', {
+            'fields': ('app_label', 'model_name', 'permission_type')
+        }),
+        ('Статус', {
+            'fields': ('is_active',)
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def roles_count(self, obj):
+        return obj.role_permissions.count()
+    roles_count.short_description = 'Количество ролей'
+
+
+@admin.register(UserRole)
+class UserRoleAdmin(admin.ModelAdmin):
+    list_display = ['user', 'role', 'scope_type', 'scope_info', 'is_active', 'is_valid', 'assigned_at']
+    list_filter = ['role', 'scope_type', 'is_active', 'assigned_at']
+    search_fields = ['user__username', 'user__email', 'role__name']
+    readonly_fields = ['id', 'assigned_at']
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('user', 'role', 'scope_type')
+        }),
+        ('Область действия', {
+            'fields': ('organization', 'department', 'division', 'employee'),
+            'description': 'Укажите область действия роли'
+        }),
+        ('Временные рамки', {
+            'fields': ('is_active', 'valid_from', 'valid_until'),
+            'description': 'Настройте временные рамки действия роли'
+        }),
+        ('Метаданные', {
+            'fields': ('assigned_by', 'reason'),
+            'classes': ('collapse',)
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'assigned_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def scope_info(self, obj):
+        if obj.scope_type == 'organization' and obj.organization:
+            return obj.organization.name
+        elif obj.scope_type == 'department' and obj.department:
+            return obj.department.name
+        elif obj.scope_type == 'division' and obj.division:
+            return obj.division.name
+        elif obj.scope_type == 'employee' and obj.employee:
+            return obj.employee.full_name
+        return 'Глобальная'
+    scope_info.short_description = 'Область действия'
+    
+    def is_valid(self, obj):
+        return obj.is_valid
+    is_valid.boolean = True
+    is_valid.short_description = 'Действует'
+
+
+@admin.register(AccessLog)
+class AccessLogAdmin(admin.ModelAdmin):
+    list_display = ['user', 'action', 'object_type', 'object_name', 'success', 'ip_address', 'timestamp']
+    list_filter = ['action', 'object_type', 'success', 'timestamp']
+    search_fields = ['user__username', 'object_name', 'ip_address']
+    readonly_fields = ['id', 'timestamp']
+    date_hierarchy = 'timestamp'
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('user', 'action', 'object_type', 'object_id', 'object_name')
+        }),
+        ('Детали доступа', {
+            'fields': ('ip_address', 'user_agent', 'url', 'method'),
+            'classes': ('collapse',)
+        }),
+        ('Результат', {
+            'fields': ('success', 'error_message'),
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'timestamp'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
+@admin.register(TemporaryPermission)
+class TemporaryPermissionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'permission', 'object_type', 'object_id', 'is_valid', 'valid_from', 'valid_until', 'granted_at']
+    list_filter = ['permission', 'object_type', 'is_active', 'granted_at']
+    search_fields = ['user__username', 'permission__name', 'reason']
+    readonly_fields = ['id', 'granted_at']
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('user', 'permission')
+        }),
+        ('Объект', {
+            'fields': ('object_type', 'object_id'),
+            'description': 'Тип и ID объекта, на который распространяется право'
+        }),
+        ('Временные рамки', {
+            'fields': ('valid_from', 'valid_until', 'is_active'),
+            'description': 'Настройте временные рамки действия права'
+        }),
+        ('Метаданные', {
+            'fields': ('reason', 'granted_by'),
+            'classes': ('collapse',)
+        }),
+        ('Системные поля', {
+            'fields': ('id', 'granted_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def is_valid(self, obj):
+        return obj.is_valid
+    is_valid.boolean = True
+    is_valid.short_description = 'Действует'
 
 
 # Настройка заголовков админки

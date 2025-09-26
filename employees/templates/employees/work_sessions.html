@@ -1,0 +1,115 @@
+{% extends 'employees/base.html' %}
+{% load static %}
+
+{% block title %}Сессии рабочего времени{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-clock"></i> Сессии рабочего времени
+                </h1>
+                <div>
+                    <a href="{% url 'profile_view' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад к профилю
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Информация о сотруднике -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-person"></i> {{ employee.full_name }}
+                    </h5>
+                    <p class="card-text">
+                        <strong>Департамент:</strong> {{ employee.department.name|default:"Не указан" }}<br>
+                        <strong>Отдел:</strong> {{ employee.division.name|default:"Не указан" }}<br>
+                        <strong>Период:</strong> {{ start_date|date:"d.m.Y H:i" }} - {{ end_date|date:"d.m.Y H:i" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Сессии -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul"></i> Сессии за последние 7 дней
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if sessions %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Дата</th>
+                                        <th>Время начала</th>
+                                        <th>Время окончания</th>
+                                        <th>Длительность</th>
+                                        <th>Тип</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for session in sessions %}
+                                    <tr>
+                                        <td>{{ session.start_time|date:"d.m.Y" }}</td>
+                                        <td>{{ session.start_time|date:"H:i" }}</td>
+                                        <td>
+                                            {% if session.end_time %}
+                                                {{ session.end_time|date:"H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">Активна</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if session.duration_minutes %}
+                                                {{ session.duration_minutes }} мин
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if session.session_type == 'work' %}
+                                                <span class="badge bg-primary">Работа</span>
+                                            {% elif session.session_type == 'break' %}
+                                                <span class="badge bg-warning">Перерыв</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ session.session_type }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if session.end_time %}
+                                                <span class="badge bg-success">Завершена</span>
+                                            {% else %}
+                                                <span class="badge bg-info">Активна</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-clock-history fs-1 text-muted"></i>
+                            <p class="text-muted mt-3">Нет данных о сессиях за указанный период</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

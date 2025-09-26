@@ -1,0 +1,140 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Роли и права доступа{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-shield-check"></i> Роли и права доступа</h1>
+                <div>
+                    <a href="{% url 'users_roles' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-people"></i> Управление пользователями
+                    </a>
+                    <a href="{% url 'role_statistics' %}" class="btn btn-outline-info">
+                        <i class="bi bi-graph-up"></i> Статистика
+                    </a>
+                </div>
+            </div>
+
+            <!-- Фильтры -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="type" class="form-label">Тип роли</label>
+                            <select name="type" id="type" class="form-select">
+                                <option value="">Все типы</option>
+                                <option value="system" {% if current_filters.type == 'system' %}selected{% endif %}>Системная</option>
+                                <option value="business" {% if current_filters.type == 'business' %}selected{% endif %}>Бизнес-роль</option>
+                                <option value="temporary" {% if current_filters.type == 'temporary' %}selected{% endif %}>Временная</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="active" class="form-label">Статус</label>
+                            <select name="active" id="active" class="form-select">
+                                <option value="">Все</option>
+                                <option value="true" {% if current_filters.active == 'true' %}selected{% endif %}>Активные</option>
+                                <option value="false" {% if current_filters.active == 'false' %}selected{% endif %}>Неактивные</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="bi bi-search"></i> Фильтровать
+                            </button>
+                            <a href="{% url 'roles_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Сбросить
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Список ролей -->
+            <div class="row">
+                {% for role in roles %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-shield-check"></i> {{ role.name }}
+                            </h5>
+                            {% if role.is_system_role %}
+                            <span class="badge bg-primary">Системная</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ role.get_role_type_display }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">{{ role.description|truncatewords:20 }}</p>
+                            
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="border-end">
+                                        <h6 class="text-muted mb-1">Прав</h6>
+                                        <h4 class="text-primary mb-0">{{ role.role_permissions.count }}</h4>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-muted mb-1">Пользователей</h6>
+                                    <h4 class="text-success mb-0">{{ role.user_roles.filter.is_active.count }}</h4>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                {% if role.is_active %}
+                                <span class="badge bg-success">Активна</span>
+                                {% else %}
+                                <span class="badge bg-danger">Неактивна</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'role_detail' role.id %}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-eye"></i> Подробнее
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle"></i> Роли не найдены
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Пагинация -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Навигация по страницам">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if current_filters.type %}&type={{ current_filters.type }}{% endif %}{% if current_filters.active %}&active={{ current_filters.active }}{% endif %}">Первая</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_filters.type %}&type={{ current_filters.type }}{% endif %}{% if current_filters.active %}&active={{ current_filters.active }}{% endif %}">Предыдущая</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_filters.type %}&type={{ current_filters.type }}{% endif %}{% if current_filters.active %}&active={{ current_filters.active }}{% endif %}">Следующая</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_filters.type %}&type={{ current_filters.type }}{% endif %}{% if current_filters.active %}&active={{ current_filters.active }}{% endif %}">Последняя</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

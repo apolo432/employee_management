@@ -772,3 +772,299 @@ class WorkTimeAuditLog(models.Model):
     
     def __str__(self):
         return f"{self.employee.full_name} - {self.action} - {self.date}"
+
+
+# =============================================================================
+# СИСТЕМА РОЛЕЙ И ПРАВ ДОСТУПА
+# =============================================================================
+
+class Role(models.Model, TurboDRFMixin):
+    """Модель роли в системе"""
+    
+    ROLE_TYPES = [
+        ('system', 'Системная роль'),
+        ('business', 'Бизнес-роль'),
+        ('temporary', 'Временная роль'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True, verbose_name="Название роли")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    role_type = models.CharField(max_length=20, choices=ROLE_TYPES, default='business', verbose_name="Тип роли")
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
+    is_system_role = models.BooleanField(default=False, verbose_name="Системная роль", 
+                                       help_text="Системные роли нельзя удалять или изменять")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+
+    class Meta:
+        verbose_name = "Роль"
+        verbose_name_plural = "Роли"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def turbodrf(cls):
+        return {
+            'fields': {
+                'name': 'Название роли',
+                'description': 'Описание',
+                'role_type': 'Тип роли',
+                'is_active': 'Активна',
+            },
+        }
+
+
+class Permission(models.Model, TurboDRFMixin):
+    """Модель права доступа"""
+    
+    PERMISSION_TYPES = [
+        ('view', 'Просмотр'),
+        ('add', 'Добавление'),
+        ('change', 'Изменение'),
+        ('delete', 'Удаление'),
+        ('export', 'Экспорт'),
+        ('approve', 'Утверждение'),
+        ('manage', 'Управление'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200, verbose_name="Название права")
+    codename = models.CharField(max_length=100, unique=True, verbose_name="Кодовое имя")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    app_label = models.CharField(max_length=100, verbose_name="Приложение")
+    model_name = models.CharField(max_length=100, verbose_name="Модель")
+    permission_type = models.CharField(max_length=20, choices=PERMISSION_TYPES, verbose_name="Тип права")
+    is_active = models.BooleanField(default=True, verbose_name="Активно")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+
+    class Meta:
+        verbose_name = "Право доступа"
+        verbose_name_plural = "Права доступа"
+        ordering = ['app_label', 'model_name', 'permission_type']
+
+    def __str__(self):
+        return f"{self.name} ({self.codename})"
+
+    @classmethod
+    def turbodrf(cls):
+        return {
+            'fields': {
+                'name': 'Название права',
+                'codename': 'Кодовое имя',
+                'description': 'Описание',
+                'app_label': 'Приложение',
+                'model_name': 'Модель',
+                'permission_type': 'Тип права',
+                'is_active': 'Активно',
+            },
+        }
+
+
+class RolePermission(models.Model):
+    """Связь роли с правами доступа"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='role_permissions', verbose_name="Роль")
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, related_name='role_permissions', verbose_name="Право")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+
+    class Meta:
+        verbose_name = "Право роли"
+        verbose_name_plural = "Права ролей"
+        unique_together = ['role', 'permission']
+        ordering = ['role', 'permission']
+
+    def __str__(self):
+        return f"{self.role.name} - {self.permission.name}"
+
+
+class UserRole(models.Model, TurboDRFMixin):
+    """Связь пользователя с ролью"""
+    
+    SCOPE_TYPES = [
+        ('global', 'Глобальная'),
+        ('organization', 'По организации'),
+        ('department', 'По департаменту'),
+        ('division', 'По отделу'),
+        ('employee', 'По сотруднику'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_roles', verbose_name="Пользователь")
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='user_roles', verbose_name="Роль")
+    
+    # Область действия роли
+    scope_type = models.CharField(max_length=20, choices=SCOPE_TYPES, default='global', verbose_name="Область действия")
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, 
+                                   related_name='user_roles', verbose_name="Организация")
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True,
+                                 related_name='user_roles', verbose_name="Департамент")
+    division = models.ForeignKey(Division, on_delete=models.CASCADE, null=True, blank=True,
+                               related_name='user_roles', verbose_name="Отдел")
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, null=True, blank=True,
+                               related_name='user_roles', verbose_name="Сотрудник")
+    
+    # Статус и временные рамки
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
+    valid_from = models.DateTimeField(default=timezone.now, verbose_name="Действует с")
+    valid_until = models.DateTimeField(null=True, blank=True, verbose_name="Действует до")
+    
+    # Метаданные
+    assigned_at = models.DateTimeField(auto_now_add=True, verbose_name="Назначена")
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='assigned_roles', verbose_name="Назначена пользователем")
+    reason = models.TextField(blank=True, verbose_name="Причина назначения")
+    
+    class Meta:
+        verbose_name = "Роль пользователя"
+        verbose_name_plural = "Роли пользователей"
+        ordering = ['-assigned_at']
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['role', 'is_active']),
+            models.Index(fields=['scope_type', 'organization']),
+            models.Index(fields=['scope_type', 'department']),
+            models.Index(fields=['scope_type', 'division']),
+        ]
+
+    def __str__(self):
+        scope_info = ""
+        if self.scope_type == 'organization' and self.organization:
+            scope_info = f" ({self.organization.name})"
+        elif self.scope_type == 'department' and self.department:
+            scope_info = f" ({self.department.name})"
+        elif self.scope_type == 'division' and self.division:
+            scope_info = f" ({self.division.name})"
+        elif self.scope_type == 'employee' and self.employee:
+            scope_info = f" ({self.employee.full_name})"
+        
+        return f"{self.user.username} - {self.role.name}{scope_info}"
+
+    @property
+    def is_valid(self):
+        """Проверяет, действует ли роль в данный момент"""
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.valid_from > now:
+            return False
+        if self.valid_until and self.valid_until < now:
+            return False
+        return True
+
+    @classmethod
+    def turbodrf(cls):
+        return {
+            'fields': {
+                'user': 'Пользователь',
+                'role': 'Роль',
+                'scope_type': 'Область действия',
+                'organization': 'Организация',
+                'department': 'Департамент',
+                'division': 'Отдел',
+                'employee': 'Сотрудник',
+                'is_active': 'Активна',
+                'valid_from': 'Действует с',
+                'valid_until': 'Действует до',
+                'reason': 'Причина назначения',
+            },
+        }
+
+
+class AccessLog(models.Model):
+    """Лог доступа к данным для аудита"""
+    
+    ACTION_TYPES = [
+        ('view', 'Просмотр'),
+        ('add', 'Добавление'),
+        ('change', 'Изменение'),
+        ('delete', 'Удаление'),
+        ('export', 'Экспорт'),
+        ('approve', 'Утверждение'),
+        ('deny', 'Отказ в доступе'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='access_logs', verbose_name="Пользователь")
+    action = models.CharField(max_length=20, choices=ACTION_TYPES, verbose_name="Действие")
+    object_type = models.CharField(max_length=100, verbose_name="Тип объекта")
+    object_id = models.UUIDField(null=True, blank=True, verbose_name="ID объекта")
+    object_name = models.CharField(max_length=200, blank=True, verbose_name="Название объекта")
+    
+    # Детали доступа
+    ip_address = models.GenericIPAddressField(verbose_name="IP адрес")
+    user_agent = models.TextField(blank=True, verbose_name="User Agent")
+    url = models.URLField(blank=True, verbose_name="URL")
+    method = models.CharField(max_length=10, blank=True, verbose_name="HTTP метод")
+    
+    # Результат
+    success = models.BooleanField(default=True, verbose_name="Успешно")
+    error_message = models.TextField(blank=True, verbose_name="Сообщение об ошибке")
+    
+    # Временная метка
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Время доступа")
+
+    class Meta:
+        verbose_name = "Запись доступа"
+        verbose_name_plural = "Записи доступа"
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['action', 'timestamp']),
+            models.Index(fields=['object_type', 'object_id']),
+            models.Index(fields=['success', 'timestamp']),
+        ]
+
+    def __str__(self):
+        status = "✓" if self.success else "✗"
+        return f"{status} {self.user.username} - {self.get_action_display()} - {self.object_type} - {self.timestamp.strftime('%d.%m.%Y %H:%M')}"
+
+
+class TemporaryPermission(models.Model):
+    """Временные права доступа"""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='temporary_permissions', verbose_name="Пользователь")
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, related_name='temporary_permissions', verbose_name="Право")
+    
+    # Объект, на который распространяется право
+    object_type = models.CharField(max_length=100, verbose_name="Тип объекта")
+    object_id = models.UUIDField(verbose_name="ID объекта")
+    
+    # Временные рамки
+    valid_from = models.DateTimeField(verbose_name="Действует с")
+    valid_until = models.DateTimeField(verbose_name="Действует до")
+    
+    # Метаданные
+    reason = models.TextField(verbose_name="Причина предоставления")
+    granted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='granted_temporary_permissions', verbose_name="Предоставлено пользователем")
+    granted_at = models.DateTimeField(auto_now_add=True, verbose_name="Предоставлено")
+    is_active = models.BooleanField(default=True, verbose_name="Активно")
+
+    class Meta:
+        verbose_name = "Временное право"
+        verbose_name_plural = "Временные права"
+        ordering = ['-granted_at']
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['valid_from', 'valid_until']),
+            models.Index(fields=['object_type', 'object_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.permission.name} - {self.valid_from.strftime('%d.%m.%Y')} - {self.valid_until.strftime('%d.%m.%Y')}"
+
+    @property
+    def is_valid(self):
+        """Проверяет, действует ли временное право в данный момент"""
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.valid_from > now:
+            return False
+        if self.valid_until < now:
+            return False
+        return True

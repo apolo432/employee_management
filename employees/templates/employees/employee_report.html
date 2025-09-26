@@ -1,0 +1,190 @@
+{% extends 'employees/base.html' %}
+{% load static %}
+
+{% block title %}Мой отчет{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Мой отчет
+                </h1>
+                <div>
+                    <a href="{% url 'profile_view' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад к профилю
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Информация о сотруднике -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-person"></i> {{ employee.full_name }}
+                    </h5>
+                    <p class="card-text">
+                        <strong>Департамент:</strong> {{ employee.department.name|default:"Не указан" }}<br>
+                        <strong>Отдел:</strong> {{ employee.division.name|default:"Не указан" }}<br>
+                        <strong>Период:</strong> {{ start_date|date:"d.m.Y" }} - {{ "now"|date:"d.m.Y" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_days }}</h4>
+                            <p class="card-text">Рабочих дней</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-calendar-day fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_hours|floatformat:1 }}</h4>
+                            <p class="card-text">Часов отработано</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-clock fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ avg_hours|floatformat:1 }}</h4>
+                            <p class="card-text">Среднее в день</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-graph-up fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ summaries|length }}</h4>
+                            <p class="card-text">Записей</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-list-ul fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Детальные данные -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul"></i> Детальные данные за месяц
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if summaries %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Дата</th>
+                                        <th>День недели</th>
+                                        <th>Время прихода</th>
+                                        <th>Время ухода</th>
+                                        <th>Общее время</th>
+                                        <th>Перерывы</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for summary in summaries %}
+                                    <tr>
+                                        <td>{{ summary.date|date:"d.m.Y" }}</td>
+                                        <td>{{ summary.date|date:"l" }}</td>
+                                        <td>
+                                            {% if summary.first_arrival %}
+                                                {{ summary.first_arrival|date:"H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if summary.last_departure %}
+                                                {{ summary.last_departure|date:"H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if summary.total_work_hours %}
+                                                {{ summary.total_work_hours|floatformat:2 }} ч
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if summary.total_break_minutes %}
+                                                {{ summary.total_break_minutes }} мин
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if summary.is_complete %}
+                                                <span class="badge bg-success">Полный день</span>
+                                            {% elif summary.first_arrival %}
+                                                <span class="badge bg-warning">Неполный день</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Отсутствовал</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-calendar-x fs-1 text-muted"></i>
+                            <p class="text-muted mt-3">Нет данных за текущий месяц</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
