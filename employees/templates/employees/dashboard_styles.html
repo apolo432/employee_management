@@ -533,10 +533,306 @@
     font-style: italic;
 }
 
+/* =============================================================================
+   АНАЛИТИЧЕСКАЯ СЕКЦИЯ
+   ============================================================================= */
+
+.analytics-section {
+    margin: 2rem 0;
+}
+
+.analytics-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.analytics-header h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+    margin: 0 0 0.5rem 0;
+}
+
+.analytics-header p {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.analytics-panel {
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.analytics-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.analytics-panel-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.analytics-panel-header h3 {
+    margin: 0;
+    color: #212529;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.analytics-panel-header h3 i {
+    color: #1e40af;
+}
+
+.analytics-subtitle {
+    color: #6c757d;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.chart-filters {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.chart-filters .filter-select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.4rem;
+    background: white;
+    color: #374151;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    min-width: 80px;
+}
+
+.chart-filters .filter-select:focus {
+    outline: none;
+    border-color: #1e40af;
+    box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.1);
+}
+
+.chart-filters .filter-select:hover {
+    border-color: #1e40af;
+}
+
+.analytics-panel-content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.analytics-table {
+    display: flex;
+    flex-direction: column;
+}
+
+.analytics-table-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 2px solid #e9ecef;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.analytics-table-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.analytics-table-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f8f9fa;
+    align-items: center;
+}
+
+.analytics-table-row:last-child {
+    border-bottom: none;
+}
+
+/* Специфичные колонки для разных таблиц */
+.analytics-panel:nth-child(1) .analytics-table-header,
+.analytics-panel:nth-child(1) .analytics-table-row {
+    grid-template-columns: 2fr 1fr 1fr;
+}
+
+.analytics-panel:nth-child(2) .analytics-table-header,
+.analytics-panel:nth-child(2) .analytics-table-row {
+    grid-template-columns: 2fr 1fr 1fr;
+}
+
+.analytics-panel:nth-child(3) .analytics-table-header,
+.analytics-panel:nth-child(3) .analytics-table-row {
+    grid-template-columns: 2fr 1fr 1fr;
+}
+
+.analytics-panel:nth-child(4) .analytics-table-header,
+.analytics-panel:nth-child(4) .analytics-table-row {
+    grid-template-columns: 2fr 1fr 1fr;
+}
+
+/* Стили для содержимого таблиц */
+.employee-name {
+    font-weight: 600;
+    color: #212529;
+    font-size: 0.9rem;
+}
+
+.employee-dept {
+    color: #6c757d;
+    font-size: 0.8rem;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.hours-value {
+    font-weight: 700;
+    color: #1e40af;
+    font-size: 1rem;
+}
+
+.problem-type {
+    font-weight: 500;
+    color: #212529;
+    font-size: 0.9rem;
+}
+
+.count-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    min-width: 2rem;
+}
+
+.count-badge.status-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.count-badge.status-error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.action-text {
+    color: #6c757d;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.dept-name {
+    font-weight: 600;
+    color: #212529;
+    font-size: 0.9rem;
+}
+
+.emp-count {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.efficiency-value {
+    font-weight: 700;
+    color: #28a745;
+    font-size: 1rem;
+}
+
+.device-name {
+    font-weight: 600;
+    color: #212529;
+    font-size: 0.9rem;
+}
+
+.device-location {
+    color: #6c757d;
+    font-size: 0.8rem;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.events-count {
+    font-weight: 700;
+    color: #1e40af;
+    font-size: 1rem;
+}
+
+.status-excellent {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-maintenance {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Графики */
+.analytics-chart {
+    height: 200px;
+    position: relative;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    border: 1px solid #e9ecef;
+}
+
+.analytics-chart canvas {
+    max-height: 100%;
+    max-width: 100%;
+}
+
 /* Responsive */
 @media (max-width: 1400px) {
     .metrics-row {
         grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .analytics-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -556,6 +852,10 @@
     
     .quick-stats-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .analytics-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -590,6 +890,51 @@
     
     .birthday-item {
         padding: 0.5rem;
+    }
+    
+    /* Аналитика на мобильных */
+    .analytics-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .analytics-panel-content {
+        padding: 1rem;
+        gap: 1rem;
+    }
+    
+    .analytics-table-header,
+    .analytics-table-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .analytics-table-header > div,
+    .analytics-table-row > div {
+        padding: 0.25rem 0;
+    }
+    
+    .analytics-chart {
+        height: 150px;
+        padding: 0.5rem;
+    }
+    
+    /* Фильтры на мобильных */
+    .chart-filters {
+        flex-direction: column;
+        gap: 0.25rem;
+        align-items: stretch;
+    }
+    
+    .chart-filters .filter-select {
+        min-width: auto;
+        font-size: 0.75rem;
+        padding: 0.3rem 0.5rem;
+    }
+    
+    .analytics-panel-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
     }
 }
 </style>

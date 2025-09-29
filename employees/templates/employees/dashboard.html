@@ -213,6 +213,219 @@
             </div>
         </div>
 
+        <!-- Analytics Section -->
+        <div class="analytics-section">
+            <div class="analytics-header">
+                <h2>Аналитика системы</h2>
+                <p>Ключевые показатели и статистика</p>
+            </div>
+            
+            <div class="analytics-grid">
+                <!-- 1. Топ сотрудников по эффективности -->
+                <div class="analytics-panel">
+                    <div class="analytics-panel-header">
+                        <h3><i class="bi bi-trophy"></i> Топ сотрудников</h3>
+                        <div class="chart-filters">
+                            <select class="filter-select" id="topEmployeesPeriod">
+                                <option value="7">7 дней</option>
+                                <option value="14">14 дней</option>
+                                <option value="30">30 дней</option>
+                            </select>
+                            <select class="filter-select" id="topEmployeesLimit">
+                                <option value="5">Топ 5</option>
+                                <option value="10">Топ 10</option>
+                                <option value="15">Топ 15</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="analytics-panel-content">
+                        <div class="analytics-table">
+                            <div class="analytics-table-header">
+                                <div class="col-name">Сотрудник</div>
+                                <div class="col-hours">Часов</div>
+                                <div class="col-status">Статус</div>
+                            </div>
+                            <div class="analytics-table-body">
+                                {% for emp in top_employees %}
+                                <div class="analytics-table-row">
+                                    <div class="col-name">
+                                        <span class="employee-name">{{ emp.employee.full_name }}</span>
+                                        <span class="employee-dept">{{ emp.employee.department.name }}</span>
+                                    </div>
+                                    <div class="col-hours">
+                                        <span class="hours-value">{{ emp.total_hours|floatformat:1 }}</span>
+                                    </div>
+                                    <div class="col-status">
+                                        <span class="status-badge status-excellent">Отлично</span>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="analytics-table-row">
+                                    <div class="col-name">Нет данных</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="analytics-chart">
+                            <canvas id="topEmployeesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Проблемы требующие внимания -->
+                <div class="analytics-panel">
+                    <div class="analytics-panel-header">
+                        <h3><i class="bi bi-exclamation-triangle"></i> Проблемы</h3>
+                        <div class="chart-filters">
+                            <select class="filter-select" id="problemsPeriod">
+                                <option value="7">7 дней</option>
+                                <option value="14">14 дней</option>
+                                <option value="30">30 дней</option>
+                            </select>
+                            <select class="filter-select" id="problemsType">
+                                <option value="all">Все проблемы</option>
+                                <option value="late">Опоздания</option>
+                                <option value="sessions">Сессии</option>
+                                <option value="devices">Устройства</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="analytics-panel-content">
+                        <div class="analytics-table">
+                            <div class="analytics-table-header">
+                                <div class="col-problem">Проблема</div>
+                                <div class="col-count">Кол-во</div>
+                                <div class="col-action">Действие</div>
+                            </div>
+                            <div class="analytics-table-body">
+                                {% for problem in problems %}
+                                <div class="analytics-table-row">
+                                    <div class="col-problem">
+                                        <span class="problem-type">{{ problem.type }}</span>
+                                    </div>
+                                    <div class="col-count">
+                                        <span class="count-badge status-{{ problem.status }}">{{ problem.count }}</span>
+                                    </div>
+                                    <div class="col-action">
+                                        <span class="action-text">{{ problem.action }}</span>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="analytics-table-row">
+                                    <div class="col-problem">Проблем не обнаружено</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="analytics-chart">
+                            <canvas id="problemsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Статистика по отделам -->
+                <div class="analytics-panel">
+                    <div class="analytics-panel-header">
+                        <h3><i class="bi bi-building"></i> Отделы</h3>
+                        <div class="chart-filters">
+                            <select class="filter-select" id="departmentsPeriod">
+                                <option value="7">7 дней</option>
+                                <option value="14">14 дней</option>
+                                <option value="30">30 дней</option>
+                            </select>
+                            <select class="filter-select" id="departmentsMetric">
+                                <option value="efficiency">Эффективность</option>
+                                <option value="attendance">Посещаемость</option>
+                                <option value="hours">Часы работы</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="analytics-panel-content">
+                        <div class="analytics-table">
+                            <div class="analytics-table-header">
+                                <div class="col-dept">Отдел</div>
+                                <div class="col-emp">Сотрудников</div>
+                                <div class="col-eff">Эффективность</div>
+                            </div>
+                            <div class="analytics-table-body">
+                                {% for dept in departments_stats %}
+                                <div class="analytics-table-row">
+                                    <div class="col-dept">
+                                        <span class="dept-name">{{ dept.name }}</span>
+                                    </div>
+                                    <div class="col-emp">
+                                        <span class="emp-count">{{ dept.present_today }}/{{ dept.total_employees }}</span>
+                                    </div>
+                                    <div class="col-eff">
+                                        <span class="efficiency-value">{{ dept.efficiency }}%</span>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="analytics-table-row">
+                                    <div class="col-dept">Нет данных</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="analytics-chart">
+                            <canvas id="departmentsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Активность СКУД устройств -->
+                <div class="analytics-panel">
+                    <div class="analytics-panel-header">
+                        <h3><i class="bi bi-router"></i> СКУД устройства</h3>
+                        <div class="chart-filters">
+                            <select class="filter-select" id="devicesPeriod">
+                                <option value="7">7 дней</option>
+                                <option value="14">14 дней</option>
+                                <option value="30">30 дней</option>
+                            </select>
+                            <select class="filter-select" id="devicesType">
+                                <option value="all">Все устройства</option>
+                                <option value="active">Активные</option>
+                                <option value="inactive">Неактивные</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="analytics-panel-content">
+                        <div class="analytics-table">
+                            <div class="analytics-table-header">
+                                <div class="col-device">Устройство</div>
+                                <div class="col-status">Статус</div>
+                                <div class="col-events">Событий</div>
+                            </div>
+                            <div class="analytics-table-body">
+                                {% for device in devices_activity %}
+                                <div class="analytics-table-row">
+                                    <div class="col-device">
+                                        <span class="device-name">{{ device.device.name }}</span>
+                                        <span class="device-location">{{ device.device.location }}</span>
+                                    </div>
+                                    <div class="col-status">
+                                        <span class="status-badge status-{{ device.status }}">{{ device.device.get_status_display }}</span>
+                                    </div>
+                                    <div class="col-events">
+                                        <span class="events-count">{{ device.events_today }}</span>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="analytics-table-row">
+                                    <div class="col-device">Нет устройств</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="analytics-chart">
+                            <canvas id="devicesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Additional Info Row -->
         <div class="additional-info-row">
             <div class="panel quick-stats-panel">
@@ -254,7 +467,7 @@
                             </div>
                             <div class="stat-info">
                                 <h4>Проблемы</h4>
-                                <p>2 случая</p>
+                                <p>{{ problems|length }} случаев</p>
                             </div>
                         </div>
                     </div>
@@ -270,8 +483,16 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Получаем данные из Django
+    const topEmployeesData = JSON.parse('{{ top_employees_chart|escapejs }}');
+    const problemsData = JSON.parse('{{ problems_chart|escapejs }}');
+    const departmentsData = JSON.parse('{{ departments_chart|escapejs }}');
+    const devicesData = JSON.parse('{{ devices_chart|escapejs }}');
     // Фильтрация списка сотрудников
     const sortSelect = document.getElementById('sortSelect');
     const sortOrderBtn = document.getElementById('sortOrderBtn');
@@ -294,24 +515,432 @@ document.addEventListener('DOMContentLoaded', function() {
     sortSelect.addEventListener('change', updateSorting);
     sortOrderBtn.addEventListener('click', updateSorting);
     
-        console.log('Dashboard loaded with filtering');
+    console.log('Dashboard loaded with filtering');
+    
+    // Инициализация Swiper для именинников
+    if (document.querySelector('.birthdays-swiper')) {
+        const birthdaysSwiper = new Swiper('.birthdays-swiper', {
+            direction: 'vertical',
+            slidesPerView: 3,
+            spaceBetween: 10,
+            loop: true,
+            autoplay: {
+                delay: 0,
+                disableOnInteraction: false,
+            },
+            speed: 2000,
+            allowTouchMove: false,
+            centeredSlides: true,
+        });
+    }
+    
+    // =============================================================================
+    // ФУНКЦИИ ДЛЯ ОБНОВЛЕНИЯ ГРАФИКОВ
+    // =============================================================================
+    
+    // Глобальные переменные для хранения экземпляров графиков
+    let topEmployeesChart = null;
+    let problemsChart = null;
+    let departmentsChart = null;
+    let devicesChart = null;
+    
+    // Функция для AJAX запроса данных
+    async function fetchAnalyticsData(chartType, params = {}) {
+        const url = new URL('/api/analytics/', window.location.origin);
+        url.searchParams.set('chart_type', chartType);
         
-        // Инициализация Swiper для именинников
-        if (document.querySelector('.birthdays-swiper')) {
-            const birthdaysSwiper = new Swiper('.birthdays-swiper', {
-                direction: 'vertical',
-                slidesPerView: 3,
-                spaceBetween: 10,
-                loop: true,
-                autoplay: {
-                    delay: 0,
-                    disableOnInteraction: false,
-                },
-                speed: 2000,
-                allowTouchMove: false,
-                centeredSlides: true,
-            });
+        Object.keys(params).forEach(key => {
+            url.searchParams.set(key, params[key]);
+        });
+        
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (result.success) {
+                return result.data;
+            } else {
+                console.error('Error fetching analytics data:', result.error);
+                return null;
+            }
+        } catch (error) {
+            console.error('Network error:', error);
+            return null;
         }
-    });
+    }
+    
+    // Функция для обновления графика топ сотрудников
+    async function updateTopEmployeesChart() {
+        const period = document.getElementById('topEmployeesPeriod').value;
+        const limit = document.getElementById('topEmployeesLimit').value;
+        
+        const data = await fetchAnalyticsData('top_employees', {
+            period: period,
+            limit: limit
+        });
+        
+        if (data && topEmployeesChart) {
+            topEmployeesChart.data.labels = data.labels;
+            topEmployeesChart.data.datasets[0].data = data.data;
+            topEmployeesChart.update();
+            
+            // Обновляем таблицу
+            updateTopEmployeesTable(data.table_data);
+        }
+    }
+    
+    // Функция для обновления графика проблем
+    async function updateProblemsChart() {
+        const period = document.getElementById('problemsPeriod').value;
+        const filterType = document.getElementById('problemsType').value;
+        
+        const data = await fetchAnalyticsData('problems', {
+            period: period,
+            filter_type: filterType
+        });
+        
+        if (data && problemsChart) {
+            problemsChart.data.labels = data.labels;
+            problemsChart.data.datasets[0].data = data.data;
+            problemsChart.update();
+            
+            // Обновляем таблицу
+            updateProblemsTable(data.table_data);
+        }
+    }
+    
+    // Функция для обновления графика отделов
+    async function updateDepartmentsChart() {
+        const period = document.getElementById('departmentsPeriod').value;
+        const metric = document.getElementById('departmentsMetric').value;
+        
+        const data = await fetchAnalyticsData('departments', {
+            period: period,
+            metric: metric,
+            limit: 5
+        });
+        
+        if (data && departmentsChart) {
+            departmentsChart.data.labels = data.labels;
+            departmentsChart.data.datasets[0].data = data.data;
+            departmentsChart.update();
+            
+            // Обновляем таблицу
+            updateDepartmentsTable(data.table_data, metric);
+        }
+    }
+    
+    // Функция для обновления графика устройств
+    async function updateDevicesChart() {
+        const period = document.getElementById('devicesPeriod').value;
+        const filterType = document.getElementById('devicesType').value;
+        
+        const data = await fetchAnalyticsData('devices', {
+            period: period,
+            filter_type: filterType,
+            limit: 5
+        });
+        
+        if (data && devicesChart) {
+            devicesChart.data.labels = data.labels;
+            devicesChart.data.datasets[0].data = data.data;
+            devicesChart.update();
+            
+            // Обновляем таблицу
+            updateDevicesTable(data.table_data);
+        }
+    }
+    
+    // Функции для обновления таблиц
+    function updateTopEmployeesTable(data) {
+        const tbody = document.querySelector('#topEmployeesChart').closest('.analytics-panel').querySelector('.analytics-table-body');
+        tbody.innerHTML = '';
+        
+        data.forEach(emp => {
+            const row = document.createElement('div');
+            row.className = 'analytics-table-row';
+            row.innerHTML = `
+                <div class="col-name">
+                    <span class="employee-name">${emp.name}</span>
+                    <span class="employee-dept">${emp.department}</span>
+                </div>
+                <div class="col-hours">
+                    <span class="hours-value">${emp.hours.toFixed(1)}</span>
+                </div>
+                <div class="col-status">
+                    <span class="status-badge status-excellent">Отлично</span>
+                </div>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    function updateProblemsTable(data) {
+        const tbody = document.querySelector('#problemsChart').closest('.analytics-panel').querySelector('.analytics-table-body');
+        tbody.innerHTML = '';
+        
+        if (data.length === 0) {
+            const row = document.createElement('div');
+            row.className = 'analytics-table-row';
+            row.innerHTML = '<div class="col-problem">Проблем не обнаружено</div>';
+            tbody.appendChild(row);
+            return;
+        }
+        
+        data.forEach(problem => {
+            const row = document.createElement('div');
+            row.className = 'analytics-table-row';
+            row.innerHTML = `
+                <div class="col-problem">
+                    <span class="problem-type">${problem.type}</span>
+                </div>
+                <div class="col-count">
+                    <span class="count-badge status-${problem.status}">${problem.count}</span>
+                </div>
+                <div class="col-action">
+                    <span class="action-text">Требует внимания</span>
+                </div>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    function updateDepartmentsTable(data, metric) {
+        const tbody = document.querySelector('#departmentsChart').closest('.analytics-panel').querySelector('.analytics-table-body');
+        tbody.innerHTML = '';
+        
+        data.forEach(dept => {
+            const row = document.createElement('div');
+            row.className = 'analytics-table-row';
+            row.innerHTML = `
+                <div class="col-dept">
+                    <span class="dept-name">${dept.name}</span>
+                </div>
+                <div class="col-emp">
+                    <span class="emp-count">${dept.present_today}/${dept.total_employees}</span>
+                </div>
+                <div class="col-eff">
+                    <span class="efficiency-value">${dept.value}${metric === 'efficiency' ? '%' : metric === 'hours' ? 'ч' : '%'}</span>
+                </div>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    function updateDevicesTable(data) {
+        const tbody = document.querySelector('#devicesChart').closest('.analytics-panel').querySelector('.analytics-table-body');
+        tbody.innerHTML = '';
+        
+        data.forEach(device => {
+            const row = document.createElement('div');
+            row.className = 'analytics-table-row';
+            row.innerHTML = `
+                <div class="col-device">
+                    <span class="device-name">${device.device_name}</span>
+                    <span class="device-location">${device.location}</span>
+                </div>
+                <div class="col-status">
+                    <span class="status-badge status-${device.status}">${device.status}</span>
+                </div>
+                <div class="col-events">
+                    <span class="events-count">${device.events_count}</span>
+                </div>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    // =============================================================================
+    // ИНИЦИАЛИЗАЦИЯ ГРАФИКОВ
+    // =============================================================================
+    
+    // 1. Bar Chart - Топ сотрудников
+    const topEmployeesCtx = document.getElementById('topEmployeesChart');
+    if (topEmployeesCtx && topEmployeesData.labels.length > 0) {
+        topEmployeesChart = new Chart(topEmployeesCtx, {
+            type: 'bar',
+            data: {
+                labels: topEmployeesData.labels,
+                datasets: [{
+                    label: 'Часов работы',
+                    data: topEmployeesData.data,
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(255, 205, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(255, 205, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + 'ч';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 2. Pie Chart - Проблемы
+    const problemsCtx = document.getElementById('problemsChart');
+    if (problemsCtx && problemsData.labels.length > 0) {
+        problemsChart = new Chart(problemsCtx, {
+            type: 'pie',
+            data: {
+                labels: problemsData.labels,
+                datasets: [{
+                    data: problemsData.data,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(255, 159, 64, 0.8)',
+                        'rgba(255, 205, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(54, 162, 235, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(255, 205, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(54, 162, 235, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 3. Bar Chart - Отделы
+    const departmentsCtx = document.getElementById('departmentsChart');
+    if (departmentsCtx && departmentsData.labels.length > 0) {
+        departmentsChart = new Chart(departmentsCtx, {
+            type: 'bar',
+            data: {
+                labels: departmentsData.labels,
+                datasets: [{
+                    label: 'Эффективность (%)',
+                    data: departmentsData.data,
+                    backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 4. Line Chart - Активность устройств
+    const devicesCtx = document.getElementById('devicesChart');
+    if (devicesCtx && devicesData.labels.length > 0) {
+        devicesChart = new Chart(devicesCtx, {
+            type: 'line',
+            data: {
+                labels: devicesData.labels,
+                datasets: [{
+                    label: 'Событий',
+                    data: devicesData.data,
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // =============================================================================
+    // ОБРАБОТЧИКИ СОБЫТИЙ ДЛЯ ФИЛЬТРОВ
+    // =============================================================================
+    
+    // Обработчики для фильтров топ сотрудников
+    document.getElementById('topEmployeesPeriod').addEventListener('change', updateTopEmployeesChart);
+    document.getElementById('topEmployeesLimit').addEventListener('change', updateTopEmployeesChart);
+    
+    // Обработчики для фильтров проблем
+    document.getElementById('problemsPeriod').addEventListener('change', updateProblemsChart);
+    document.getElementById('problemsType').addEventListener('change', updateProblemsChart);
+    
+    // Обработчики для фильтров отделов
+    document.getElementById('departmentsPeriod').addEventListener('change', updateDepartmentsChart);
+    document.getElementById('departmentsMetric').addEventListener('change', updateDepartmentsChart);
+    
+    // Обработчики для фильтров устройств
+    document.getElementById('devicesPeriod').addEventListener('change', updateDevicesChart);
+    document.getElementById('devicesType').addEventListener('change', updateDevicesChart);
+    
+    console.log('Analytics dashboard with filters loaded successfully');
+});
 </script>
 {% endblock %}

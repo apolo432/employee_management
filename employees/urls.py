@@ -32,6 +32,7 @@ urlpatterns = [
     path('test-device/<uuid:device_id>/', frontend_views.test_device, name='test_device'),
     path('api/status/', frontend_views.api_status, name='api_status'),
     path('check-devices-health/', frontend_views.check_devices_health, name='check_devices_health'),
+    path('api/analytics/', frontend_views.analytics_data, name='analytics_data'),
     
     # REST API для системы учёта рабочего времени
     path('api/worktime/', include('employees.api_urls')),

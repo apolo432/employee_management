@@ -1,0 +1,287 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}{{ role.name }} - Детали роли{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="bi bi-shield-check"></i> {{ role.name }}</h1>
+                    <p class="text-muted mb-0">{{ role.description }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'roles_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад к списку
+                    </a>
+                    <a href="{% url 'users_roles' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-people"></i> Управление пользователями
+                    </a>
+                </div>
+            </div>
+
+            <!-- Информация о роли -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-info-circle"></i> Информация о роли
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Название:</strong></td>
+                                            <td>{{ role.name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Тип роли:</strong></td>
+                                            <td>
+                                                {% if role.is_system_role %}
+                                                <span class="badge bg-primary">Системная роль</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">{{ role.get_role_type_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Статус:</strong></td>
+                                            <td>
+                                                {% if role.is_active %}
+                                                <span class="badge bg-success">Активна</span>
+                                                {% else %}
+                                                <span class="badge bg-danger">Неактивна</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Создана:</strong></td>
+                                            <td>{{ role.created_at|date:"d.m.Y H:i" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Обновлена:</strong></td>
+                                            <td>{{ role.updated_at|date:"d.m.Y H:i" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Прав доступа:</strong></td>
+                                            <td><span class="badge bg-info">{{ permissions.count }}</span></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            {% if role.description %}
+                            <div class="mt-3">
+                                <h6>Описание:</h6>
+                                <p class="text-muted">{{ role.description }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-graph-up"></i> Статистика
+                            </h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="border-end">
+                                        <h3 class="text-primary mb-1">{{ permissions.count }}</h3>
+                                        <small class="text-muted">Прав доступа</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <h3 class="text-success mb-1">{{ user_roles.count }}</h3>
+                                    <small class="text-muted">Пользователей</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Права доступа -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-key"></i> Права доступа ({{ permissions.count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if permissions %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Название права</th>
+                                            <th>Кодовое имя</th>
+                                            <th>Приложение</th>
+                                            <th>Модель</th>
+                                            <th>Тип</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for role_permission in permissions %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ role_permission.permission.name }}</strong>
+                                                {% if role_permission.permission.description %}
+                                                <br><small class="text-muted">{{ role_permission.permission.description }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <code>{{ role_permission.permission.codename }}</code>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark">{{ role_permission.permission.app_label }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark">{{ role_permission.permission.model_name }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ role_permission.permission.get_permission_type_display }}</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info text-center">
+                                <i class="bi bi-info-circle"></i> У этой роли нет назначенных прав доступа
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Пользователи с этой ролью -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-people"></i> Пользователи с этой ролью ({{ user_roles.count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if user_roles %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Пользователь</th>
+                                            <th>Email</th>
+                                            <th>Область действия</th>
+                                            <th>Действует с</th>
+                                            <th>Действует до</th>
+                                            <th>Назначена</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for user_role in user_roles %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                        {{ user_role.user.username|first|upper }}
+                                                    </div>
+                                                    <div>
+                                                        <strong>{{ user_role.user.get_full_name|default:user_role.user.username }}</strong>
+                                                        <br><small class="text-muted">@{{ user_role.user.username }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ user_role.user.email|default:"—" }}</td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ user_role.get_scope_type_display }}</span>
+                                                {% if user_role.organization %}
+                                                <br><small class="text-muted">{{ user_role.organization.name }}</small>
+                                                {% elif user_role.department %}
+                                                <br><small class="text-muted">{{ user_role.department.name }}</small>
+                                                {% elif user_role.division %}
+                                                <br><small class="text-muted">{{ user_role.division.name }}</small>
+                                                {% elif user_role.employee %}
+                                                <br><small class="text-muted">{{ user_role.employee.full_name }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ user_role.valid_from|date:"d.m.Y" }}</td>
+                                            <td>
+                                                {% if user_role.valid_until %}
+                                                {{ user_role.valid_until|date:"d.m.Y" }}
+                                                {% else %}
+                                                <span class="text-muted">Бессрочно</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ user_role.assigned_at|date:"d.m.Y H:i" }}</small>
+                                                {% if user_role.assigned_by %}
+                                                <br><small class="text-muted">назначена {{ user_role.assigned_by.username }}</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info text-center">
+                                <i class="bi bi-info-circle"></i> Эту роль пока никто не использует
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+code {
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+}
+</style>
+{% endblock %}

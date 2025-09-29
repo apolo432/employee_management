@@ -27,11 +27,12 @@ from .permissions import PermissionChecker
 @require_login
 def dashboard(request):
     """Главная страница с обзором системы"""
-    from django.db.models import Count, Q, Sum
+    from django.db.models import Count, Q, Sum, Avg
     from datetime import datetime, timedelta
     
     today = timezone.now().date()
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
     
     # Основные метрики
     total_employees = Employee.objects.filter(is_active=True).count()
@@ -101,7 +102,6 @@ def dashboard(request):
             'is_present': False
         })
     
-    
     # Сортируем по выбранному параметру
     if sort_by == 'name':
         today_attendance.sort(key=lambda x: x['employee'].full_name, reverse=(sort_order == 'desc'))
@@ -141,6 +141,170 @@ def dashboard(request):
     # Сортируем по количеству дней до дня рождения
     all_birthdays.sort(key=lambda x: x['days_until'])
     
+    # =============================================================================
+    # АНАЛИТИЧЕСКИЕ ДАННЫЕ
+    # =============================================================================
+    
+    # 1. Топ сотрудников по эффективности (за последнюю неделю)
+    top_employees = []
+    work_sessions_week = WorkSession.objects.filter(
+        date__gte=week_ago,
+        employee__is_active=True
+    ).select_related('employee')
+    
+    # Группируем по сотрудникам и считаем общее время
+    employee_hours = {}
+    for session in work_sessions_week:
+        emp_id = session.employee.id
+        if emp_id not in employee_hours:
+            employee_hours[emp_id] = {
+                'employee': session.employee,
+                'total_hours': 0,
+                'sessions_count': 0
+            }
+        if session.duration_hours:
+            employee_hours[emp_id]['total_hours'] += session.duration_hours
+        employee_hours[emp_id]['sessions_count'] += 1
+    
+    # Сортируем по общему времени и берем топ-5
+    top_employees = sorted(employee_hours.values(), key=lambda x: x['total_hours'], reverse=True)[:5]
+    
+    # 2. Проблемы требующие внимания
+    problems = []
+    
+    # Опоздания за неделю
+    late_count = 0
+    for session in work_sessions_week:
+        if session.start_time.time() > datetime.strptime('09:00', '%H:%M').time():
+            late_count += 1
+    
+    if late_count > 0:
+        problems.append({
+            'type': 'Опоздания',
+            'count': late_count,
+            'status': 'warning',
+            'action': 'Проверить расписание'
+        })
+    
+    # Отсутствие выхода (открытые сессии)
+    open_sessions = WorkSession.objects.filter(
+        employee__is_active=True,
+        end_time__isnull=True,
+        date__gte=week_ago
+    ).count()
+    
+    if open_sessions > 0:
+        problems.append({
+            'type': 'Незакрытые сессии',
+            'count': open_sessions,
+            'status': 'error',
+            'action': 'Закрыть сессии'
+        })
+    
+    # Проблемы с устройствами
+    offline_devices = SKUDDevice.objects.filter(
+        is_active=True,
+        status__in=['inactive', 'error']
+    ).count()
+    
+    if offline_devices > 0:
+        problems.append({
+            'type': 'Неисправные устройства',
+            'count': offline_devices,
+            'status': 'error',
+            'action': 'Проверить устройства'
+        })
+    
+    # 3. Статистика по отделам
+    departments_stats = []
+    departments = Employee.objects.filter(is_active=True).values('department__name').annotate(
+        total_employees=Count('id')
+    ).order_by('-total_employees')[:5]
+    
+    for dept in departments:
+        dept_name = dept['department__name']
+        total_emp = dept['total_employees']
+        
+        # Считаем присутствующих сегодня
+        present_today = len([att for att in today_attendance 
+                           if att['employee'].department.name == dept_name and att['is_present']])
+        
+        # Считаем эффективность (часы работы за неделю)
+        dept_employees = Employee.objects.filter(
+            is_active=True, 
+            department__name=dept_name
+        )
+        total_hours = 0
+        for emp in dept_employees:
+            emp_sessions = work_sessions_week.filter(employee=emp)
+            total_hours += sum(s.duration_hours for s in emp_sessions if s.duration_hours)
+        
+        efficiency = (total_hours / (total_emp * 40)) * 100 if total_emp > 0 else 0  # 40 часов в неделю
+        
+        departments_stats.append({
+            'name': dept_name,
+            'total_employees': total_emp,
+            'present_today': present_today,
+            'efficiency': round(efficiency, 1)
+        })
+    
+    # 4. Активность СКУД устройств
+    devices_activity = []
+    devices = SKUDDevice.objects.filter(is_active=True).order_by('name')[:5]
+    
+    for device in devices:
+        # События за сегодня
+        today_events = SKUDEvent.objects.filter(
+            device=device,
+            event_time__date=today
+        ).count()
+        
+        # Последняя активность
+        last_event = SKUDEvent.objects.filter(device=device).order_by('-event_time').first()
+        last_activity = last_event.event_time if last_event else None
+        
+        devices_activity.append({
+            'device': device,
+            'status': device.status,
+            'events_today': today_events,
+            'last_activity': last_activity
+        })
+    
+    # Данные для графиков
+    import json
+    
+    # Bar chart - топ сотрудники
+    top_employees_chart = {
+        'labels': [emp['employee'].full_name for emp in top_employees],
+        'data': [emp['total_hours'] for emp in top_employees]
+    }
+    
+    # Pie chart - проблемы
+    problems_chart = {
+        'labels': [p['type'] for p in problems],
+        'data': [p['count'] for p in problems]
+    }
+    
+    # Bar chart - отделы
+    departments_chart = {
+        'labels': [dept['name'] for dept in departments_stats],
+        'data': [dept['efficiency'] for dept in departments_stats]
+    }
+    
+    # Line chart - активность устройств за 7 дней
+    devices_line_data = []
+    for i in range(7):
+        date = today - timedelta(days=6-i)
+        total_events = SKUDEvent.objects.filter(
+            event_time__date=date
+        ).count()
+        devices_line_data.append(total_events)
+    
+    devices_chart = {
+        'labels': [(today - timedelta(days=6-i)).strftime('%d.%m') for i in range(7)],
+        'data': devices_line_data
+    }
+    
     context = {
         'total_employees': total_employees,
         'active_employees': active_employees,
@@ -154,9 +318,254 @@ def dashboard(request):
         'today': today,
         'sort_by': sort_by,
         'sort_order': sort_order,
+        
+        # Аналитические данные
+        'top_employees': top_employees,
+        'problems': problems,
+        'departments_stats': departments_stats,
+        'devices_activity': devices_activity,
+        
+        # Данные для графиков (JSON сериализованные)
+        'top_employees_chart': json.dumps(top_employees_chart),
+        'problems_chart': json.dumps(problems_chart),
+        'departments_chart': json.dumps(departments_chart),
+        'devices_chart': json.dumps(devices_chart),
     }
     
     return render(request, 'employees/dashboard.html', context)
+
+
+@require_login
+def analytics_data(request):
+    """AJAX endpoint для получения данных аналитики с фильтрами"""
+    from django.http import JsonResponse
+    from django.db.models import Count, Q, Sum, Avg
+    from datetime import datetime, timedelta
+    import json
+    
+    # Получаем параметры фильтрации
+    chart_type = request.GET.get('chart_type')
+    period = int(request.GET.get('period', 7))
+    limit = int(request.GET.get('limit', 5))
+    filter_type = request.GET.get('filter_type', 'all')
+    metric = request.GET.get('metric', 'efficiency')
+    
+    today = timezone.now().date()
+    start_date = today - timedelta(days=period-1)
+    
+    try:
+        if chart_type == 'top_employees':
+            # Топ сотрудников
+            work_sessions = WorkSession.objects.filter(
+                date__gte=start_date,
+                employee__is_active=True
+            ).select_related('employee')
+            
+            employee_hours = {}
+            for session in work_sessions:
+                emp_id = session.employee.id
+                if emp_id not in employee_hours:
+                    employee_hours[emp_id] = {
+                        'employee': session.employee,
+                        'total_hours': 0,
+                        'sessions_count': 0
+                    }
+                if session.duration_hours:
+                    employee_hours[emp_id]['total_hours'] += session.duration_hours
+                employee_hours[emp_id]['sessions_count'] += 1
+            
+            top_employees = sorted(employee_hours.values(), key=lambda x: x['total_hours'], reverse=True)[:limit]
+            
+            data = {
+                'labels': [emp['employee'].full_name for emp in top_employees],
+                'data': [emp['total_hours'] for emp in top_employees],
+                'table_data': [
+                    {
+                        'name': emp['employee'].full_name,
+                        'department': emp['employee'].department.name,
+                        'hours': emp['total_hours'],
+                        'sessions': emp['sessions_count']
+                    } for emp in top_employees
+                ]
+            }
+            
+        elif chart_type == 'problems':
+            # Проблемы
+            problems = []
+            
+            # Опоздания
+            if filter_type in ['all', 'late']:
+                work_sessions = WorkSession.objects.filter(
+                    date__gte=start_date,
+                    employee__is_active=True
+                )
+                late_count = 0
+                for session in work_sessions:
+                    if session.start_time.time() > datetime.strptime('09:00', '%H:%M').time():
+                        late_count += 1
+                
+                if late_count > 0:
+                    problems.append({
+                        'type': 'Опоздания',
+                        'count': late_count,
+                        'status': 'warning'
+                    })
+            
+            # Незакрытые сессии
+            if filter_type in ['all', 'sessions']:
+                open_sessions = WorkSession.objects.filter(
+                    employee__is_active=True,
+                    end_time__isnull=True,
+                    date__gte=start_date
+                ).count()
+                
+                if open_sessions > 0:
+                    problems.append({
+                        'type': 'Незакрытые сессии',
+                        'count': open_sessions,
+                        'status': 'error'
+                    })
+            
+            # Проблемы с устройствами
+            if filter_type in ['all', 'devices']:
+                offline_devices = SKUDDevice.objects.filter(
+                    is_active=True,
+                    status__in=['inactive', 'error']
+                ).count()
+                
+                if offline_devices > 0:
+                    problems.append({
+                        'type': 'Неисправные устройства',
+                        'count': offline_devices,
+                        'status': 'error'
+                    })
+            
+            data = {
+                'labels': [p['type'] for p in problems],
+                'data': [p['count'] for p in problems],
+                'table_data': problems
+            }
+            
+        elif chart_type == 'departments':
+            # Отделы
+            departments = Employee.objects.filter(is_active=True).values('department__name').annotate(
+                total_employees=Count('id')
+            ).order_by('-total_employees')[:limit]
+            
+            departments_stats = []
+            work_sessions = WorkSession.objects.filter(
+                date__gte=start_date,
+                employee__is_active=True
+            )
+            
+            for dept in departments:
+                dept_name = dept['department__name']
+                total_emp = dept['total_employees']
+                
+                # Считаем присутствующих сегодня
+                present_today = Employee.objects.filter(
+                    is_active=True,
+                    department__name=dept_name
+                ).count()
+                
+                # Считаем метрику
+                dept_employees = Employee.objects.filter(
+                    is_active=True, 
+                    department__name=dept_name
+                )
+                
+                if metric == 'efficiency':
+                    total_hours = 0
+                    for emp in dept_employees:
+                        emp_sessions = work_sessions.filter(employee=emp)
+                        total_hours += sum(s.duration_hours for s in emp_sessions if s.duration_hours)
+                    value = (total_hours / (total_emp * 40)) * 100 if total_emp > 0 else 0
+                elif metric == 'attendance':
+                    present_days = 0
+                    total_days = 0
+                    for emp in dept_employees:
+                        emp_sessions = work_sessions.filter(employee=emp)
+                        present_days += emp_sessions.count()
+                        total_days += period
+                    value = (present_days / total_days) * 100 if total_days > 0 else 0
+                else:  # hours
+                    total_hours = 0
+                    for emp in dept_employees:
+                        emp_sessions = work_sessions.filter(employee=emp)
+                        total_hours += sum(s.duration_hours for s in emp_sessions if s.duration_hours)
+                    value = total_hours
+                
+                departments_stats.append({
+                    'name': dept_name,
+                    'total_employees': total_emp,
+                    'present_today': present_today,
+                    'value': round(value, 1)
+                })
+            
+            data = {
+                'labels': [dept['name'] for dept in departments_stats],
+                'data': [dept['value'] for dept in departments_stats],
+                'table_data': departments_stats
+            }
+            
+        elif chart_type == 'devices':
+            # Устройства
+            devices_query = SKUDDevice.objects.filter(is_active=True)
+            if filter_type == 'active':
+                devices_query = devices_query.filter(status='active')
+            elif filter_type == 'inactive':
+                devices_query = devices_query.filter(status__in=['inactive', 'error'])
+            
+            devices = devices_query.order_by('name')[:limit]
+            
+            devices_activity = []
+            for device in devices:
+                # События за период
+                period_events = SKUDEvent.objects.filter(
+                    device=device,
+                    event_time__date__gte=start_date
+                ).count()
+                
+                # Последняя активность
+                last_event = SKUDEvent.objects.filter(device=device).order_by('-event_time').first()
+                last_activity = last_event.event_time if last_event else None
+                
+                devices_activity.append({
+                    'device_name': device.name,
+                    'location': device.location,
+                    'status': device.status,
+                    'events_count': period_events,
+                    'last_activity': last_activity
+                })
+            
+            # Данные для линейного графика
+            line_data = []
+            for i in range(period):
+                date = today - timedelta(days=period-1-i)
+                total_events = SKUDEvent.objects.filter(
+                    event_time__date=date
+                ).count()
+                line_data.append(total_events)
+            
+            data = {
+                'labels': [(today - timedelta(days=period-1-i)).strftime('%d.%m') for i in range(period)],
+                'data': line_data,
+                'table_data': devices_activity
+            }
+        
+        else:
+            return JsonResponse({'error': 'Invalid chart type'}, status=400)
+        
+        return JsonResponse({
+            'success': True,
+            'data': data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 @require_login

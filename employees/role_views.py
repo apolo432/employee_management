@@ -11,7 +11,7 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Role, Permission, UserRole, AccessLog, Employee, Organization, Department, Division
+from .models import Role, Permission, UserRole, AccessLog, Employee, Organization, Department, Division, TemporaryPermission
 from .decorators import require_login, can_manage_roles
 from .permissions import PermissionChecker
 
@@ -20,7 +20,7 @@ from .permissions import PermissionChecker
 @can_manage_roles
 def roles_list(request):
     """Список ролей"""
-    roles = Role.objects.all().order_by('name')
+    roles = Role.objects.prefetch_related('role_permissions', 'user_roles').all().order_by('name')
     
     # Фильтры
     role_type = request.GET.get('type')
@@ -31,6 +31,12 @@ def roles_list(request):
     
     if is_active is not None:
         roles = roles.filter(is_active=is_active == 'true')
+    
+    # Добавляем аннотацию для подсчета активных пользователей
+    from django.db.models import Count, Q
+    roles = roles.annotate(
+        active_users_count=Count('user_roles', filter=Q(user_roles__is_active=True))
+    )
     
     # Пагинация
     paginator = Paginator(roles, 20)
