@@ -8,7 +8,7 @@ from rest_framework.routers import DefaultRouter
 from .api_views import (
     WorkSessionViewSet, WorkDaySummaryViewSet, EmployeeViewSet,
     WorkTimeProcessorViewSet, WorkTimeAuditLogViewSet,
-    SKUDEventViewSet, SKUDDeviceViewSet, BirthdayViewSet
+    SKUDEventViewSet, SKUDDeviceViewSet, BirthdayViewSet, PINFLSyncViewSet
 )
 
 # Создаём роутер для ViewSets
@@ -21,6 +21,7 @@ router.register(r'audit-logs', WorkTimeAuditLogViewSet, basename='worktimeauditl
 router.register(r'skud-events', SKUDEventViewSet, basename='skudevent')
 router.register(r'skud-devices', SKUDDeviceViewSet, basename='skuddevice')
 router.register(r'birthdays', BirthdayViewSet, basename='birthday')
+router.register(r'pinfl-sync', PINFLSyncViewSet, basename='pinflsync')
 
 urlpatterns = [
     # API маршруты через роутер

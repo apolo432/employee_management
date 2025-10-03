@@ -1,0 +1,608 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}{{ employee.full_name }} - Профиль сотрудника{% endblock %}
+
+{% block content %}
+<div class="employee-detail-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>Профиль сотрудника</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Главная</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'employees_list' %}">Сотрудники</a></li>
+                    <li class="breadcrumb-item active">{{ employee.full_name }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Employee Profile Card -->
+    <div class="profile-container">
+        <div class="profile-card">
+            <!-- Profile Header -->
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    {% if employee.photo %}
+                        <img src="{{ employee.photo.url }}" alt="{{ employee.full_name }}" class="avatar-img">
+                    {% else %}
+                        <i class="bi bi-person-circle avatar-icon"></i>
+                    {% endif %}
+                </div>
+                <div class="profile-info">
+                    <h2 class="employee-name">{{ employee.full_name }}</h2>
+                    <p class="employee-position">{{ employee.get_position_display }}</p>
+                    <p class="employee-department">{{ employee.department.name }} - {{ employee.division.name }}</p>
+                    <div class="employee-status">
+                        {% if employee.is_active %}
+                            <span class="status-badge status-active">
+                                <i class="bi bi-check-circle"></i>
+                                Активен
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-inactive">
+                                <i class="bi bi-x-circle"></i>
+                                Неактивен
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="profile-actions">
+                    <a href="{% url 'edit_employee' employee.id %}" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i>
+                        Редактировать
+                    </a>
+                    <a href="{% url 'update_pinfl' employee.id %}" class="btn btn-outline-primary">
+                        <i class="bi bi-person-badge"></i>
+                        Обновить PINFL
+                    </a>
+                </div>
+            </div>
+
+            <!-- Profile Content -->
+            <div class="profile-content">
+                <div class="profile-tabs">
+                    <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">
+                                <i class="bi bi-person"></i>
+                                Личная информация
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="work-tab" data-bs-toggle="tab" data-bs-target="#work" type="button" role="tab">
+                                <i class="bi bi-briefcase"></i>
+                                Рабочая информация
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+                                <i class="bi bi-clock-history"></i>
+                                Активность
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="profileTabsContent">
+                        <!-- Personal Information Tab -->
+                        <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                            <div class="info-grid">
+                                <div class="info-section">
+                                    <h4><i class="bi bi-person-badge"></i> Основная информация</h4>
+                                    <div class="info-item">
+                                        <label>ФИО:</label>
+                                        <span>{{ employee.full_name }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Дата рождения:</label>
+                                        <span>{{ employee.birth_date|date:"d.m.Y" }} ({{ employee.age }} лет)</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Пол:</label>
+                                        <span>{{ employee.get_gender_display }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>PINFL:</label>
+                                        {% if employee.pinfl %}
+                                            <span class="pinfl-value">{{ employee.pinfl }}</span>
+                                        {% else %}
+                                            <span class="pinfl-missing">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                Не указан
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="info-section">
+                                    <h4><i class="bi bi-telephone"></i> Контактная информация</h4>
+                                    <div class="info-item">
+                                        <label>Телефон:</label>
+                                        <span>{{ employee.phone }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Email:</label>
+                                        <span>{{ employee.email }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Work Information Tab -->
+                        <div class="tab-pane fade" id="work" role="tabpanel">
+                            <div class="info-grid">
+                                <div class="info-section">
+                                    <h4><i class="bi bi-building"></i> Организация</h4>
+                                    <div class="info-item">
+                                        <label>Организация:</label>
+                                        <span>{{ employee.organization.name }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Департамент:</label>
+                                        <span>{{ employee.department.name }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Подразделение:</label>
+                                        <span>{{ employee.division.name }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="info-section">
+                                    <h4><i class="bi bi-briefcase"></i> Рабочая информация</h4>
+                                    <div class="info-item">
+                                        <label>Должность:</label>
+                                        <span>{{ employee.get_position_display }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Табельный номер:</label>
+                                        <span>{{ employee.employee_id }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Дата приема:</label>
+                                        <span>{{ employee.hire_date|date:"d.m.Y" }}</span>
+                                    </div>
+                                    {% if employee.termination_date %}
+                                    <div class="info-item">
+                                        <label>Дата увольнения:</label>
+                                        <span>{{ employee.termination_date|date:"d.m.Y" }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="info-section">
+                                    <h4><i class="bi bi-clock"></i> Рабочее время</h4>
+                                    <div class="info-item">
+                                        <label>Ставка работы:</label>
+                                        <span>{{ employee.work_fraction }} ({{ employee.get_work_fraction_display }})</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Часов в день:</label>
+                                        <span>{{ employee.daily_hours }} ч</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Activity Tab -->
+                        <div class="tab-pane fade" id="activity" role="tabpanel">
+                            <div class="activity-content">
+                                <!-- Recent Events -->
+                                <div class="activity-section">
+                                    <h4><i class="bi bi-door-open"></i> Последние события СКУД</h4>
+                                    {% if recent_events %}
+                                        <div class="events-list">
+                                            {% for event in recent_events %}
+                                            <div class="event-item">
+                                                <div class="event-icon">
+                                                    {% if event.event_type == 'entry' %}
+                                                        <i class="bi bi-box-arrow-in-right text-success"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-box-arrow-right text-danger"></i>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="event-details">
+                                                    <div class="event-type">
+                                                        {% if event.event_type == 'entry' %}
+                                                            Вход
+                                                        {% else %}
+                                                            Выход
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="event-time">{{ event.event_time|date:"d.m.Y H:i" }}</div>
+                                                    <div class="event-device">{{ event.device.name }}</div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="no-data">Нет данных о событиях</p>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Work Time Summaries -->
+                                <div class="activity-section">
+                                    <h4><i class="bi bi-calendar-check"></i> Рабочее время (последние 7 дней)</h4>
+                                    {% if recent_summaries %}
+                                        <div class="summaries-list">
+                                            {% for summary in recent_summaries %}
+                                            <div class="summary-item">
+                                                <div class="summary-date">{{ summary.date|date:"d.m.Y" }}</div>
+                                                <div class="summary-status">
+                                                    {% if summary.status == 'present' %}
+                                                        <span class="status-badge status-present">
+                                                            <i class="bi bi-check-circle"></i>
+                                                            Присутствовал
+                                                        </span>
+                                                    {% elif summary.status == 'absent' %}
+                                                        <span class="status-badge status-absent">
+                                                            <i class="bi bi-x-circle"></i>
+                                                            Отсутствовал
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="status-badge status-partial">
+                                                            <i class="bi bi-clock"></i>
+                                                            Частично
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="summary-hours">{{ summary.total_hours }} ч</div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="no-data">Нет данных о рабочем времени</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.employee-detail-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.profile-container {
+    margin-top: 20px;
+}
+
+.profile-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.profile-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.profile-avatar {
+    flex-shrink: 0;
+}
+
+.avatar-img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.avatar-icon {
+    font-size: 120px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.profile-info {
+    flex-grow: 1;
+}
+
+.employee-name {
+    margin: 0 0 10px 0;
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.employee-position {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+    opacity: 0.9;
+}
+
+.employee-department {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-active {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.status-inactive {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.profile-content {
+    padding: 30px;
+}
+
+.profile-tabs .nav-tabs {
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 30px;
+}
+
+.profile-tabs .nav-link {
+    border: none;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-tabs .nav-link.active {
+    color: #667eea;
+    border-bottom: 2px solid #667eea;
+    background: none;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+.info-section h4 {
+    color: #495057;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-item label {
+    font-weight: 600;
+    color: #6c757d;
+    margin: 0;
+}
+
+.info-item span {
+    color: #495057;
+}
+
+.pinfl-value {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #28a745;
+}
+
+.pinfl-missing {
+    color: #dc3545;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.activity-content {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.activity-section {
+    margin-bottom: 30px;
+}
+
+.activity-section h4 {
+    color: #495057;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.events-list, .summaries-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.event-item, .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.event-icon {
+    font-size: 20px;
+}
+
+.event-details {
+    flex-grow: 1;
+}
+
+.event-type {
+    font-weight: 600;
+    color: #495057;
+}
+
+.event-time {
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.event-device {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.summary-item {
+    justify-content: space-between;
+}
+
+.summary-date {
+    font-weight: 600;
+    color: #495057;
+}
+
+.summary-hours {
+    font-weight: 600;
+    color: #667eea;
+}
+
+.status-present {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+.status-absent {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.status-partial {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.no-data {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline-primary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .employee-detail-page {
+        padding: 10px;
+    }
+    
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .profile-actions {
+        flex-direction: row;
+        justify-content: center;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Инициализация табов Bootstrap
+    var triggerTabList = [].slice.call(document.querySelectorAll('#profileTabs button'))
+    triggerTabList.forEach(function (triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl)
+        
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault()
+            tabTrigger.show()
+        })
+    })
+});
+</script>
+{% endblock %}
+
+
+
+

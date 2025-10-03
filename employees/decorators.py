@@ -230,6 +230,38 @@ def can_manage_roles(view_func):
                             "У вас нет прав для управления ролями")(view_func)
 
 
+def can_create_employee(view_func):
+    """Декоратор для проверки права создания сотрудника"""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            if request.headers.get('Accept') == 'application/json':
+                return JsonResponse({'error': 'Требуется аутентификация'}, status=401)
+            messages.error(request, 'Требуется вход в систему')
+            return redirect('login_view')
+        
+        # Суперпользователь может создавать сотрудников
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+        
+        # Проверяем права через роли
+        user_roles = PermissionChecker.get_user_roles(request.user)
+        user_role_names = [ur.role.name for ur in user_roles if ur.is_valid]
+        
+        # Роли, которые могут создавать сотрудников
+        allowed_roles = ['HR-менеджер', 'Администратор', 'Руководитель департамента']
+        
+        if not any(role_name in user_role_names for role_name in allowed_roles):
+            error_message = "У вас нет прав для создания сотрудников"
+            if request.headers.get('Accept') == 'application/json':
+                return JsonResponse({'error': error_message}, status=403)
+            messages.error(request, error_message)
+            return HttpResponseForbidden(f"<h1>Доступ запрещен</h1><p>{error_message}</p>")
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 # =============================================================================
 # ДЕКОРАТОРЫ ДЛЯ КЛАССОВ (CBV)
 # =============================================================================

@@ -1,0 +1,243 @@
+{% extends 'employees/base.html' %}
+{% load static %}
+
+{% block title %}Админ - Тест PINFL API{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-notice {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        color: #856404;
+    }
+    
+    .test-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .test-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 1px solid #e9ecef;
+    }
+    
+    .test-form {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .test-form input {
+        flex: 1;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .test-form button {
+        padding: 12px 24px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    
+    .test-form button:hover {
+        background: #0056b3;
+    }
+    
+    .result-box {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-top: 1rem;
+        font-family: monospace;
+        white-space: pre-wrap;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .success {
+        border-left: 4px solid #28a745;
+        background: #d4edda;
+    }
+    
+    .error {
+        border-left: 4px solid #dc3545;
+        background: #f8d7da;
+    }
+    
+    .loading {
+        border-left: 4px solid #ffc107;
+        background: #fff3cd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="test-container">
+    <div class="admin-notice">
+        <i class="bi bi-shield-exclamation"></i>
+        <strong>Административная панель:</strong> Эта страница доступна только администраторам системы.
+    </div>
+    
+    <h2>🔧 Тест PINFL API</h2>
+    <p class="text-muted">Инструменты для тестирования интеграции с внешним API СКУД системы</p>
+    
+    <div class="test-section">
+        <h3>1. Получение данных сотрудника</h3>
+        <div class="test-form">
+            <input type="text" id="pinflInput" placeholder="Введите PINFL (например: 52302017110051)" value="52302017110051">
+            <button onclick="testGetEmployee()">Получить данные</button>
+        </div>
+        <div id="getResult" class="result-box" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Синхронизация сотрудника</h3>
+        <div class="test-form">
+            <input type="text" id="syncPinflInput" placeholder="Введите PINFL для синхронизации" value="52302017110051">
+            <button onclick="testSyncEmployee()">Синхронизировать</button>
+        </div>
+        <div id="syncResult" class="result-box" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Создание нового сотрудника из СКУД (по PINFL)</h3>
+        <div class="test-form">
+            <input type="text" id="createPinflInput" placeholder="Введите PINFL для создания сотрудника" value="12345678901234">
+            <button onclick="testCreateEmployee()">Создать сотрудника</button>
+        </div>
+        <div id="createResult" class="result-box" style="display: none;"></div>
+    </div>
+    
+    
+    <div class="test-section">
+        <h3>4. Тест валидации PINFL</h3>
+        <div class="test-form">
+            <input type="text" id="validateInput" placeholder="Введите PINFL для валидации" value="123">
+            <button onclick="testValidate()">Валидировать</button>
+        </div>
+        <div id="validateResult" class="result-box" style="display: none;"></div>
+    </div>
+</div>
+
+<script>
+function showResult(elementId, content, type = 'info') {
+    const element = document.getElementById(elementId);
+    element.style.display = 'block';
+    element.className = `result-box ${type}`;
+    element.textContent = content;
+}
+
+async function testGetEmployee() {
+    const pinfl = document.getElementById('pinflInput').value;
+    if (!pinfl) {
+        showResult('getResult', 'Введите PINFL', 'error');
+        return;
+    }
+    
+    showResult('getResult', 'Загрузка...', 'loading');
+    
+    try {
+        const response = await fetch(`/api/pinfl/get/?pinfl=${pinfl}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult('getResult', JSON.stringify(data, null, 2), 'success');
+        } else {
+            showResult('getResult', `Ошибка: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showResult('getResult', `Ошибка запроса: ${error.message}`, 'error');
+    }
+}
+
+async function testSyncEmployee() {
+    const pinfl = document.getElementById('syncPinflInput').value;
+    if (!pinfl) {
+        showResult('syncResult', 'Введите PINFL', 'error');
+        return;
+    }
+    
+    showResult('syncResult', 'Синхронизация...', 'loading');
+    
+    try {
+        const response = await fetch(`/api/pinfl/sync/?pinfl=${pinfl}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult('syncResult', JSON.stringify(data, null, 2), 'success');
+        } else {
+            showResult('syncResult', `Ошибка: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showResult('syncResult', `Ошибка запроса: ${error.message}`, 'error');
+    }
+}
+
+async function testCreateEmployee() {
+    const pinfl = document.getElementById('createPinflInput').value;
+    if (!pinfl) {
+        showResult('createResult', 'Введите PINFL', 'error');
+        return;
+    }
+    
+    showResult('createResult', 'Создание сотрудника...', 'loading');
+    
+    try {
+        const response = await fetch(`/api/pinfl/create/?pinfl=${pinfl}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult('createResult', JSON.stringify(data, null, 2), 'success');
+        } else {
+            showResult('createResult', `Ошибка: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showResult('createResult', `Ошибка запроса: ${error.message}`, 'error');
+    }
+}
+
+
+async function testValidate() {
+    const pinfl = document.getElementById('validateInput').value;
+    if (!pinfl) {
+        showResult('validateResult', 'Введите PINFL', 'error');
+        return;
+    }
+    
+    // Простая валидация на клиенте
+    let isValid = false;
+    let error = '';
+    
+    if (!pinfl) {
+        error = 'PINFL не может быть пустым';
+    } else if (!pinfl.match(/^\d{14}$/)) {
+        error = 'PINFL должен содержать ровно 14 цифр';
+    } else {
+        isValid = true;
+    }
+    
+    const result = {
+        pinfl: pinfl,
+        valid: isValid,
+        error: error
+    };
+    
+    showResult('validateResult', JSON.stringify(result, null, 2), isValid ? 'success' : 'error');
+}
+</script>
+{% endblock %}

@@ -22,9 +22,10 @@ from .serializers import (
     WorkTimeAuditLogSerializer, SKUDEventSerializer, SKUDDeviceSerializer,
     WorkSessionCreateSerializer, EmployeeWorkTimeStatsSerializer,
     DepartmentWorkTimeStatsSerializer, ReprocessWorkTimeSerializer,
-    BirthdayEmployeeSerializer
+    BirthdayEmployeeSerializer, PINFLSyncSerializer, PINFLSyncResponseSerializer
 )
 from .work_time_processor import WorkTimeProcessor
+from .pinfl_api import pinfl_client
 
 
 class WorkSessionViewSet(viewsets.ModelViewSet):
@@ -674,3 +675,178 @@ class BirthdayViewSet(viewsets.ViewSet):
         }
         
         return Response(result)
+
+
+class PINFLSyncViewSet(viewsets.ViewSet):
+    """ViewSet для синхронизации PINFL с SKUD API"""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    @action(detail=False, methods=['post'])
+    def sync_employee(self, request):
+        """Синхронизация PINFL конкретного сотрудника"""
+        serializer = PINFLSyncSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        data = serializer.validated_data
+        
+        try:
+            employee = Employee.objects.get(id=data['employee_id'])
+        except Employee.DoesNotExist:
+            return Response(
+                {'error': 'Сотрудник не найден'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Валидация PINFL
+        is_valid, error_message = pinfl_client.validate_pinfl_format(data['pinfl'])
+        if not is_valid:
+            return Response(
+                {'error': error_message}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем уникальность PINFL
+        existing_employee = Employee.objects.filter(pinfl=data['pinfl']).exclude(id=employee.id).first()
+        if existing_employee:
+            return Response(
+                {'error': f'PINFL {data["pinfl"]} уже используется сотрудником {existing_employee.full_name}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Выполняем синхронизацию
+        result = pinfl_client.sync_employee_pinfl(
+            employee=employee,
+            pinfl=data['pinfl'],
+            date=data['date']
+        )
+        
+        response_serializer = PINFLSyncResponseSerializer(result)
+        
+        if result['success']:
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(response_serializer.data, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'])
+    def bulk_sync(self, request):
+        """Массовая синхронизация PINFL для нескольких сотрудников"""
+        employees_data = request.data.get('employees', [])
+        
+        if not employees_data:
+            return Response(
+                {'error': 'Список сотрудников не может быть пустым'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        results = []
+        success_count = 0
+        error_count = 0
+        
+        for emp_data in employees_data:
+            serializer = PINFLSyncSerializer(data=emp_data)
+            if not serializer.is_valid():
+                results.append({
+                    'employee_id': emp_data.get('employee_id'),
+                    'success': False,
+                    'error': 'Неверные данные: ' + str(serializer.errors)
+                })
+                error_count += 1
+                continue
+            
+            data = serializer.validated_data
+            
+            try:
+                employee = Employee.objects.get(id=data['employee_id'])
+            except Employee.DoesNotExist:
+                results.append({
+                    'employee_id': str(data['employee_id']),
+                    'success': False,
+                    'error': 'Сотрудник не найден'
+                })
+                error_count += 1
+                continue
+            
+            # Валидация PINFL
+            is_valid, error_message = pinfl_client.validate_pinfl_format(data['pinfl'])
+            if not is_valid:
+                results.append({
+                    'employee_id': str(data['employee_id']),
+                    'success': False,
+                    'error': error_message
+                })
+                error_count += 1
+                continue
+            
+            # Проверяем уникальность PINFL
+            existing_employee = Employee.objects.filter(pinfl=data['pinfl']).exclude(id=employee.id).first()
+            if existing_employee:
+                results.append({
+                    'employee_id': str(data['employee_id']),
+                    'success': False,
+                    'error': f'PINFL {data["pinfl"]} уже используется'
+                })
+                error_count += 1
+                continue
+            
+            # Выполняем синхронизацию
+            result = pinfl_client.sync_employee_pinfl(
+                employee=employee,
+                pinfl=data['pinfl'],
+                date=data['date']
+            )
+            
+            results.append(result)
+            if result['success']:
+                success_count += 1
+            else:
+                error_count += 1
+        
+        return Response({
+            'message': f'Обработано: {len(employees_data)}, Успешно: {success_count}, Ошибок: {error_count}',
+            'total_processed': len(employees_data),
+            'success_count': success_count,
+            'error_count': error_count,
+            'results': results
+        })
+    
+    @action(detail=False, methods=['get'])
+    def test_connection(self, request):
+        """Тестирование подключения к SKUD API"""
+        result = pinfl_client.test_connection()
+        
+        if result['success']:
+            return Response(result, status=status.HTTP_200_OK)
+        else:
+            return Response(result, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    @action(detail=False, methods=['get'])
+    def employees_without_pinfl(self, request):
+        """Получение списка сотрудников без PINFL"""
+        employees = Employee.objects.filter(
+            is_active=True,
+            pinfl__isnull=True
+        ).select_related('department', 'division')
+        
+        serializer = EmployeeSerializer(employees, many=True)
+        
+        return Response({
+            'employees': serializer.data,
+            'count': employees.count()
+        })
+    
+    @action(detail=False, methods=['get'])
+    def employees_with_pinfl(self, request):
+        """Получение списка сотрудников с PINFL"""
+        employees = Employee.objects.filter(
+            is_active=True,
+            pinfl__isnull=False
+        ).select_related('department', 'division')
+        
+        serializer = EmployeeSerializer(employees, many=True)
+        
+        return Response({
+            'employees': serializer.data,
+            'count': employees.count()
+        })

@@ -511,4 +511,42 @@
         height: 2.5rem;
     }
 }
+
+/* Стили для кликабельных ссылок сотрудников (только для админов) */
+.employee-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: all 0.3s ease;
+}
+
+.employee-link:hover {
+    text-decoration: none;
+    color: inherit;
+    transform: translateY(-2px);
+}
+
+.employee-link:hover .employee-info {
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 8px;
+    padding: 8px;
+    margin: -8px;
+}
+
+.employee-link:hover .employee-name {
+    color: #667eea;
+}
+
+.employee-link:hover .avatar-img {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.employee-link:hover .avatar-icon {
+    color: #667eea;
+}
+
+/* Индикатор кликабельности для админов */
+.employee-row:hover {
+    cursor: pointer;
+}
 </style>

@@ -24,8 +24,11 @@ urlpatterns = [
     path('devices/<uuid:device_id>/activate/', frontend_views.activate_device, name='activate_device'),
     path('events/', frontend_views.events_list, name='events_list'),
     path('employees/', frontend_views.employees_list, name='employees_list'),
+    path('employees/create/', frontend_views.create_employee, name='create_employee'),
+    path('employees/<uuid:employee_id>/', frontend_views.employee_detail, name='employee_detail'),
+    path('employees/<uuid:employee_id>/edit/', frontend_views.edit_employee, name='edit_employee'),
+    path('employees/<uuid:employee_id>/update-pinfl/', frontend_views.update_pinfl, name='update_pinfl'),
     path('employees/<uuid:employee_id>/events/', frontend_views.employee_events, name='employee_events'),
-    path('test/', frontend_views.quick_test, name='quick_test'),
     path('send-test-event/', frontend_views.send_test_event, name='send_test_event'),
     
     # AJAX endpoints
@@ -33,9 +36,20 @@ urlpatterns = [
     path('api/status/', frontend_views.api_status, name='api_status'),
     path('check-devices-health/', frontend_views.check_devices_health, name='check_devices_health'),
     path('api/analytics/', frontend_views.analytics_data, name='analytics_data'),
+    path('api/departments/', frontend_views.get_departments, name='get_departments'),
+    path('api/divisions/', frontend_views.get_divisions, name='get_divisions'),
     
     # REST API для системы учёта рабочего времени
     path('api/worktime/', include('employees.api_urls')),
+    
+    # PINFL API endpoints
+    path('api/pinfl/get/', frontend_views.get_employee_by_pinfl_api_view, name='get_employee_by_pinfl'),
+    path('api/pinfl/sync/', frontend_views.sync_employee_api_view, name='sync_employee_by_pinfl'),
+    path('api/pinfl/create/', frontend_views.create_employee_api_view, name='create_employee_by_pinfl'),
+    
+    
+    # Административная страница тестирования PINFL API
+    path('system/test-pinfl-api/', frontend_views.admin_test_pinfl_api, name='admin_test_pinfl_api'),
     
     
     # Контроль прибытия и отбытия

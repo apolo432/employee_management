@@ -161,6 +161,18 @@ class Employee(models.Model, TurboDRFMixin):
     # Личные данные
     birth_date = models.DateField(verbose_name="Дата рождения")
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, verbose_name="Пол")
+    pinfl = models.CharField(
+        max_length=14, 
+        unique=True, 
+        null=True,
+        blank=True,
+        validators=[RegexValidator(
+            regex=r'^\d{14}$',
+            message="PINFL должен содержать ровно 14 цифр."
+        )], 
+        verbose_name="PINFL",
+        help_text="14-значный персональный идентификационный номер физического лица"
+    )
     phone = models.CharField(max_length=20, validators=[RegexValidator(
         regex=r'^\+?1?\d{9,15}$',
         message="Номер телефона должен быть в формате: '+999999999'. До 15 цифр."
@@ -201,6 +213,28 @@ class Employee(models.Model, TurboDRFMixin):
         help_text="Стандартное количество рабочих часов в день"
     )
     
+    # Данные из внешнего API СКУД
+    external_id = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name="ID в СКУД системе",
+        help_text="Идентификатор сотрудника во внешней системе СКУД"
+    )
+    work_start_time = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="Время начала работы",
+        help_text="Стандартное время начала рабочего дня (из СКУД)"
+    )
+    work_end_time = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="Время окончания работы", 
+        help_text="Стандартное время окончания рабочего дня (из СКУД)"
+    )
+    
     # Системные поля
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
@@ -223,6 +257,58 @@ class Employee(models.Model, TurboDRFMixin):
         return today.year - self.birth_date.year - (
             (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
         )
+    
+    @property
+    def fio(self):
+        """Полное ФИО (для совместимости с API)"""
+        return self.full_name
+    
+    @property
+    def work_duration_hours(self):
+        """Количество рабочих часов в день (из СКУД или стандартное)"""
+        if self.work_start_time and self.work_end_time:
+            from datetime import datetime, timedelta
+            start = datetime.combine(timezone.now().date(), self.work_start_time)
+            end = datetime.combine(timezone.now().date(), self.work_end_time)
+            if end < start:  # Если работа через полночь
+                end += timedelta(days=1)
+            return (end - start).total_seconds() / 3600
+        return float(self.daily_hours)
+    
+    def update_from_api_data(self, api_data):
+        """
+        Обновить данные сотрудника из API СКУД
+        
+        Args:
+            api_data: Словарь с данными из API
+        """
+        if api_data.get('id'):
+            self.external_id = api_data['id']
+        
+        if api_data.get('work_start_time'):
+            from datetime import datetime
+            try:
+                # Предполагаем формат "HH:MM" или "HH:MM:SS"
+                time_str = api_data['work_start_time']
+                if len(time_str.split(':')) == 2:
+                    time_str += ':00'  # Добавляем секунды если их нет
+                self.work_start_time = datetime.strptime(time_str, '%H:%M:%S').time()
+            except (ValueError, TypeError):
+                pass  # Игнорируем неверный формат времени
+        
+        if api_data.get('work_end_time'):
+            from datetime import datetime
+            try:
+                # Предполагаем формат "HH:MM" или "HH:MM:SS"
+                time_str = api_data['work_end_time']
+                if len(time_str.split(':')) == 2:
+                    time_str += ':00'  # Добавляем секунды если их нет
+                self.work_end_time = datetime.strptime(time_str, '%H:%M:%S').time()
+            except (ValueError, TypeError):
+                pass  # Игнорируем неверный формат времени
+        
+        # Сохраняем изменения
+        self.save(update_fields=['external_id', 'work_start_time', 'work_end_time'])
     
     def get_expected_daily_seconds(self, date=None):
         """
@@ -263,6 +349,7 @@ class Employee(models.Model, TurboDRFMixin):
                 'last_name': 'Фамилия',
                 'first_name': 'Имя',
                 'middle_name': 'Отчество',
+                'pinfl': 'PINFL',
                 'photo': 'Фото',
             },
         }

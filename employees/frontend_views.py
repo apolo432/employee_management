@@ -13,15 +13,33 @@ from django.core.paginator import Paginator
 from datetime import datetime, timedelta, date
 from django.db.models import Q, Count
 import json
+import logging
 
-from .models import SKUDDevice, SKUDEvent, Employee, WorkDaySummary, WorkSession
+# Настройка логгера
+logger = logging.getLogger(__name__)
+
+from .models import SKUDDevice, SKUDEvent, Employee, WorkDaySummary, WorkSession, Organization, Department, Division
 from .skud_device_communication import SKUDDeviceCommunicator, SKUDEventProcessor
 from .reports import WorkTimeReportGenerator
 from .decorators import (
     require_login, can_view_employee, can_edit_employee, can_manage_skud_devices,
-    can_view_reports, can_export_data, can_approve_vacation, can_manage_roles
+    can_view_reports, can_export_data, can_approve_vacation, can_manage_roles,
+    can_create_employee
 )
 from .permissions import PermissionChecker
+from .forms import EmployeeRegistrationForm, EmployeeEditForm, PINFLUpdateForm
+from .pinfl_api import pinfl_client, get_employee_by_pinfl_api_view, sync_employee_api_view, create_employee_api_view
+
+
+@require_login
+def admin_test_pinfl_api(request):
+    """Административная страница для тестирования PINFL API"""
+    # Проверяем, что пользователь является суперпользователем
+    if not request.user.is_superuser:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("Доступ запрещен. Только администраторы могут использовать эту страницу.")
+    
+    return render(request, 'employees/test_pinfl_api.html')
 
 
 @require_login
@@ -815,19 +833,6 @@ def check_devices_health(request):
     }, status=405)
 
 
-def quick_test(request):
-    """Быстрый тест системы"""
-    if request.method == 'POST':
-        # Тестируем все устройства
-        communicator = SKUDDeviceCommunicator()
-        results = communicator.check_all_devices_health()
-        
-        return JsonResponse({
-            'success': True,
-            'results': results
-        })
-    
-    return render(request, 'employees/quick_test.html')
 
 
 @require_login
@@ -1360,7 +1365,8 @@ def attendance_control(request):
             # Рассчитываем общую статистику
             total_work_hours = sum(s.total_hours for s in month_summaries)
             total_expected_hours = sum(s.expected_hours for s in month_summaries)
-            total_entry_count = sum(s.sessions_count for s in month_summaries)
+            # Изменено: считаем количество уникальных дней вместо количества входов
+            total_entry_count = month_summaries.filter(sessions_count__gt=0).count()
             
             # Статус на основе количества присутствий
             present_days = month_summaries.filter(status='present').count()
@@ -1510,7 +1516,7 @@ def export_attendance_excel(request):
     if view_type == 'daily':
         headers = ['Сотрудник', 'Должность', 'Отдел', 'Время прихода', 'Время ухода', 'Часов работы', 'Статус']
     else:
-        headers = ['Сотрудник', 'Должность', 'Отдел', 'Часов работы', 'Ожидаемо часов', 'Количество входов', 'Статус']
+        headers = ['Сотрудник', 'Должность', 'Отдел', 'Часов работы', 'Ожидаемо часов', 'Количество дней', 'Статус']
     
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=3, column=col, value=header)
@@ -1603,7 +1609,8 @@ def export_attendance_excel(request):
             
             total_work_hours = sum(s.total_hours for s in month_summaries)
             total_expected_hours = sum(s.expected_hours for s in month_summaries)
-            total_entry_count = sum(s.sessions_count for s in month_summaries)
+            # Изменено: считаем количество уникальных дней вместо количества входов
+            total_entry_count = month_summaries.filter(sessions_count__gt=0).count()
             
             present_days = month_summaries.filter(status='present').count()
             total_work_days = month_summaries.count()
@@ -1663,3 +1670,203 @@ def export_attendance_excel(request):
     
     wb.save(response)
     return response
+
+
+@require_login
+@can_create_employee
+def create_employee(request):
+    """Создание нового сотрудника"""
+    if request.method == 'POST':
+        form = EmployeeRegistrationForm(request.POST)
+        if form.is_valid():
+            try:
+                employee = form.save()
+                messages.success(request, f'Сотрудник {employee.full_name} успешно создан')
+                
+                # Автоматически синхронизируем PINFL с SKUD API
+                if employee.pinfl:
+                    sync_result = pinfl_client.sync_employee_pinfl(
+                        employee=employee,
+                        pinfl=employee.pinfl,
+                        date=date.today()
+                    )
+                    
+                    if sync_result['success']:
+                        messages.success(request, 'PINFL успешно синхронизирован с SKUD')
+                    else:
+                        messages.warning(request, f'PINFL не синхронизирован с SKUD: {sync_result.get("error_details", "Неизвестная ошибка")}')
+                
+                return redirect('employee_detail', employee_id=employee.id)
+            except Exception as e:
+                messages.error(request, f'Ошибка при создании сотрудника: {str(e)}')
+    else:
+        form = EmployeeRegistrationForm()
+    
+    # Получаем данные для выпадающих списков
+    organizations = Organization.objects.all()
+    departments = Department.objects.all()
+    divisions = Division.objects.all()
+    
+    context = {
+        'form': form,
+        'organizations': organizations,
+        'departments': departments,
+        'divisions': divisions,
+    }
+    
+    return render(request, 'employees/create_employee.html', context)
+
+
+@require_login
+def employee_detail(request, employee_id):
+    """Детальная информация о сотруднике (только для администраторов)"""
+    # Проверяем, что пользователь - администратор
+    if not request.user.is_superuser:
+        messages.error(request, 'Доступ к детальной информации о сотрудниках разрешен только администраторам')
+        return redirect('employees_list')
+    
+    try:
+        employee = Employee.objects.select_related('user', 'organization', 'department', 'division').get(id=employee_id)
+        
+        # Получаем последние события сотрудника
+        recent_events = SKUDEvent.objects.filter(employee=employee).order_by('-event_time')[:10]
+        
+        # Получаем сводки за последние 7 дней
+        week_ago = timezone.now().date() - timedelta(days=7)
+        recent_summaries = WorkDaySummary.objects.filter(
+            employee=employee,
+            date__gte=week_ago
+        ).order_by('-date')
+        
+        context = {
+            'employee': employee,
+            'recent_events': recent_events,
+            'recent_summaries': recent_summaries,
+        }
+        
+        return render(request, 'employees/employee_detail.html', context)
+        
+    except Employee.DoesNotExist:
+        messages.error(request, 'Сотрудник не найден')
+        return redirect('employees_list')
+
+
+@require_login
+@can_edit_employee
+def edit_employee(request, employee_id):
+    """Редактирование сотрудника"""
+    try:
+        employee = Employee.objects.get(id=employee_id)
+        
+        # Проверяем права доступа
+        if not PermissionChecker.can_edit_employee(request.user, employee):
+            messages.error(request, 'У вас нет прав для редактирования данных этого сотрудника')
+            return redirect('employee_detail', employee_id=employee.id)
+        
+        if request.method == 'POST':
+            form = EmployeeEditForm(request.POST, instance=employee, employee=employee)
+            if form.is_valid():
+                try:
+                    form.save()
+                    messages.success(request, f'Данные сотрудника {employee.full_name} успешно обновлены')
+                    return redirect('employee_detail', employee_id=employee.id)
+                except Exception as e:
+                    messages.error(request, f'Ошибка при обновлении данных: {str(e)}')
+        else:
+            form = EmployeeEditForm(instance=employee, employee=employee)
+        
+        # Получаем данные для выпадающих списков
+        organizations = Organization.objects.all()
+        departments = Department.objects.all()
+        divisions = Division.objects.all()
+        
+        context = {
+            'form': form,
+            'employee': employee,
+            'organizations': organizations,
+            'departments': departments,
+            'divisions': divisions,
+        }
+        
+        return render(request, 'employees/edit_employee.html', context)
+        
+    except Employee.DoesNotExist:
+        messages.error(request, 'Сотрудник не найден')
+        return redirect('employees_list')
+
+
+@require_login
+@can_edit_employee
+def update_pinfl(request, employee_id):
+    """Обновление PINFL сотрудника"""
+    try:
+        employee = Employee.objects.get(id=employee_id)
+        
+        # Проверяем права доступа
+        if not PermissionChecker.can_edit_employee(request.user, employee):
+            messages.error(request, 'У вас нет прав для редактирования данных этого сотрудника')
+            return redirect('employee_detail', employee_id=employee.id)
+        
+        if request.method == 'POST':
+            form = PINFLUpdateForm(request.POST, employee=employee)
+            if form.is_valid():
+                try:
+                    old_pinfl = employee.pinfl
+                    new_pinfl = form.cleaned_data['pinfl']
+                    
+                    # Обновляем PINFL
+                    employee.pinfl = new_pinfl
+                    employee.save(update_fields=['pinfl'])
+                    
+                    # Синхронизируем с SKUD API
+                    sync_result = pinfl_client.sync_employee_pinfl(
+                        employee=employee,
+                        pinfl=new_pinfl,
+                        date=date.today()
+                    )
+                    
+                    if sync_result['success']:
+                        messages.success(request, f'PINFL успешно обновлен и синхронизирован с SKUD')
+                    else:
+                        messages.warning(request, f'PINFL обновлен, но не синхронизирован с SKUD: {sync_result.get("error_details", "Неизвестная ошибка")}')
+                    
+                    return redirect('employee_detail', employee_id=employee.id)
+                except Exception as e:
+                    messages.error(request, f'Ошибка при обновлении PINFL: {str(e)}')
+        else:
+            form = PINFLUpdateForm(employee=employee)
+        
+        context = {
+            'form': form,
+            'employee': employee,
+        }
+        
+        return render(request, 'employees/update_pinfl.html', context)
+        
+    except Employee.DoesNotExist:
+        messages.error(request, 'Сотрудник не найден')
+        return redirect('employees_list')
+
+
+@require_login
+def get_departments(request):
+    """AJAX endpoint для получения отделов по организации"""
+    organization_id = request.GET.get('organization_id')
+    
+    if organization_id:
+        departments = Department.objects.filter(organization_id=organization_id).values('id', 'name')
+        return JsonResponse(list(departments), safe=False)
+    
+    return JsonResponse([], safe=False)
+
+
+@require_login
+def get_divisions(request):
+    """AJAX endpoint для получения подразделений по отделу"""
+    department_id = request.GET.get('department_id')
+    
+    if department_id:
+        divisions = Division.objects.filter(department_id=department_id).values('id', 'name')
+        return JsonResponse(list(divisions), safe=False)
+    
+    return JsonResponse([], safe=False)

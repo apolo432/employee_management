@@ -1,0 +1,642 @@
+{% extends 'employees/base.html' %}
+
+{% block title %}Создание сотрудника - Система управления сотрудниками{% endblock %}
+
+{% block content %}
+<div class="create-employee-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>Создание нового сотрудника</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Главная</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'employees_list' %}">Сотрудники</a></li>
+                    <li class="breadcrumb-item active">Создание</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Form Container -->
+    <div class="form-container">
+        <div class="form-card">
+            <div class="form-header">
+                <h2>Регистрация нового сотрудника</h2>
+                <p class="form-description">Заполните все обязательные поля для создания нового сотрудника</p>
+            </div>
+
+            <form method="post" class="employee-form" id="employeeForm">
+                {% csrf_token %}
+                
+                <!-- Personal Information Section -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="bi bi-person"></i>
+                        Личная информация
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label required">
+                                {{ form.last_name.label }}
+                            </label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.last_name.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label required">
+                                {{ form.first_name.label }}
+                            </label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.first_name.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.middle_name.id_for_label }}" class="form-label">
+                                {{ form.middle_name.label }}
+                            </label>
+                            {{ form.middle_name }}
+                            {% if form.middle_name.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.middle_name.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.pinfl.id_for_label }}" class="form-label required">
+                                {{ form.pinfl.label }}
+                            </label>
+                            {{ form.pinfl }}
+                            <small class="form-help">{{ form.pinfl.help_text }}</small>
+                            {% if form.pinfl.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.pinfl.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.birth_date.id_for_label }}" class="form-label required">
+                                {{ form.birth_date.label }}
+                            </label>
+                            {{ form.birth_date }}
+                            {% if form.birth_date.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.birth_date.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.gender.id_for_label }}" class="form-label required">
+                                {{ form.gender.label }}
+                            </label>
+                            {{ form.gender }}
+                            {% if form.gender.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.gender.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Information Section -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="bi bi-telephone"></i>
+                        Контактная информация
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.phone.id_for_label }}" class="form-label required">
+                                {{ form.phone.label }}
+                            </label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.phone.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.email.id_for_label }}" class="form-label required">
+                                {{ form.email.label }}
+                            </label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.email.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Information Section -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="bi bi-briefcase"></i>
+                        Рабочая информация
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.organization.id_for_label }}" class="form-label required">
+                                {{ form.organization.label }}
+                            </label>
+                            {{ form.organization }}
+                            {% if form.organization.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.organization.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.department.id_for_label }}" class="form-label required">
+                                {{ form.department.label }}
+                            </label>
+                            {{ form.department }}
+                            {% if form.department.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.department.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.division.id_for_label }}" class="form-label required">
+                                {{ form.division.label }}
+                            </label>
+                            {{ form.division }}
+                            {% if form.division.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.division.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.position.id_for_label }}" class="form-label required">
+                                {{ form.position.label }}
+                            </label>
+                            {{ form.position }}
+                            {% if form.position.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.position.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.employee_id.id_for_label }}" class="form-label required">
+                                {{ form.employee_id.label }}
+                            </label>
+                            {{ form.employee_id }}
+                            {% if form.employee_id.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.employee_id.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.hire_date.id_for_label }}" class="form-label required">
+                                {{ form.hire_date.label }}
+                            </label>
+                            {{ form.hire_date }}
+                            {% if form.hire_date.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.hire_date.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Time Settings Section -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="bi bi-clock"></i>
+                        Настройки рабочего времени
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.work_fraction.id_for_label }}" class="form-label">
+                                {{ form.work_fraction.label }}
+                            </label>
+                            {{ form.work_fraction }}
+                            <small class="form-help">{{ form.work_fraction.help_text }}</small>
+                            {% if form.work_fraction.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.work_fraction.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.daily_hours.id_for_label }}" class="form-label">
+                                {{ form.daily_hours.label }}
+                            </label>
+                            {{ form.daily_hours }}
+                            <small class="form-help">{{ form.daily_hours.help_text }}</small>
+                            {% if form.daily_hours.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.daily_hours.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Account Section -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="bi bi-person-circle"></i>
+                        Учетная запись пользователя
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.username.id_for_label }}" class="form-label required">
+                                {{ form.username.label }}
+                            </label>
+                            {{ form.username }}
+                            <small class="form-help">{{ form.username.help_text }}</small>
+                            {% if form.username.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.username.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.password.id_for_label }}" class="form-label required">
+                                {{ form.password.label }}
+                            </label>
+                            {{ form.password }}
+                            <small class="form-help">{{ form.password.help_text }}</small>
+                            {% if form.password.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.password.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.confirm_password.id_for_label }}" class="form-label required">
+                                {{ form.confirm_password.label }}
+                            </label>
+                            {{ form.confirm_password }}
+                            {% if form.confirm_password.errors %}
+                                <div class="form-errors">
+                                    {% for error in form.confirm_password.errors %}
+                                        <span class="error-message">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="window.history.back()">
+                        <i class="bi bi-arrow-left"></i>
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-person-plus"></i>
+                        Создать сотрудника
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.create-employee-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.form-container {
+    margin-top: 20px;
+}
+
+.form-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.form-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+.form-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.form-description {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 16px;
+}
+
+.employee-form {
+    padding: 30px;
+}
+
+.form-section {
+    margin-bottom: 40px;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 30px;
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    color: #495057;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.section-title i {
+    color: #667eea;
+    font-size: 22px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-label.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.form-group input,
+.form-group select {
+    padding: 12px 16px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-help {
+    color: #6c757d;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.form-errors {
+    margin-top: 5px;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 12px;
+    display: block;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .create-employee-page {
+        padding: 10px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Динамическое обновление отделов при выборе организации
+    const organizationSelect = document.getElementById('{{ form.organization.id_for_label }}');
+    const departmentSelect = document.getElementById('{{ form.department.id_for_label }}');
+    const divisionSelect = document.getElementById('{{ form.division.id_for_label }}');
+    
+    if (organizationSelect) {
+        organizationSelect.addEventListener('change', function() {
+            const organizationId = this.value;
+            if (organizationId) {
+                fetch(`/api/departments/?organization_id=${organizationId}`)
+                    .then(response => response.json())
+                    .then(departments => {
+                        departmentSelect.innerHTML = '<option value="">Выберите отдел</option>';
+                        departments.forEach(dept => {
+                            const option = document.createElement('option');
+                            option.value = dept.id;
+                            option.textContent = dept.name;
+                            departmentSelect.appendChild(option);
+                        });
+                        // Очищаем подразделения
+                        divisionSelect.innerHTML = '<option value="">Выберите подразделение</option>';
+                    });
+            } else {
+                departmentSelect.innerHTML = '<option value="">Выберите отдел</option>';
+                divisionSelect.innerHTML = '<option value="">Выберите подразделение</option>';
+            }
+        });
+    }
+    
+    // Динамическое обновление подразделений при выборе отдела
+    if (departmentSelect) {
+        departmentSelect.addEventListener('change', function() {
+            const departmentId = this.value;
+            if (departmentId) {
+                fetch(`/api/divisions/?department_id=${departmentId}`)
+                    .then(response => response.json())
+                    .then(divisions => {
+                        divisionSelect.innerHTML = '<option value="">Выберите подразделение</option>';
+                        divisions.forEach(div => {
+                            const option = document.createElement('option');
+                            option.value = div.id;
+                            option.textContent = div.name;
+                            divisionSelect.appendChild(option);
+                        });
+                    });
+            } else {
+                divisionSelect.innerHTML = '<option value="">Выберите подразделение</option>';
+            }
+        });
+    }
+    
+    // Валидация PINFL в реальном времени
+    const pinflInput = document.getElementById('{{ form.pinfl.id_for_label }}');
+    if (pinflInput) {
+        pinflInput.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, ''); // Удаляем все нецифровые символы
+            if (value.length > 14) {
+                value = value.substring(0, 14);
+            }
+            this.value = value;
+        });
+    }
+    
+    // Валидация формы перед отправкой
+    const form = document.getElementById('employeeForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const pinfl = pinflInput.value;
+            if (pinfl && pinfl.length !== 14) {
+                e.preventDefault();
+                alert('PINFL должен содержать ровно 14 цифр');
+                pinflInput.focus();
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

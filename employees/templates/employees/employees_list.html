@@ -38,10 +38,10 @@
             <button class="filter-btn" id="filterBtn">
                 <i class="bi bi-funnel"></i>
             </button>
-            <button class="btn btn-primary create-btn">
+            <a href="{% url 'create_employee' %}" class="btn btn-primary create-btn">
                 <i class="bi bi-plus"></i>
                 Создать сотрудника
-            </button>
+            </a>
         </div>
     </div>
 
@@ -114,6 +114,10 @@
                             СОТРУДНИК
                             <i class="bi bi-arrow-up-down sort-icon"></i>
                         </th>
+                        <th class="pinfl-col sortable" data-sort="pinfl">
+                            PINFL
+                            <i class="bi bi-arrow-up-down sort-icon"></i>
+                        </th>
                         <th class="position-col sortable" data-sort="position">
                             ДОЛЖНОСТЬ И ОТДЕЛ
                             <i class="bi bi-arrow-up-down sort-icon"></i>
@@ -128,6 +132,9 @@
                         </td>
                         <td class="number-col">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
                         <td class="employee-col">
+                            {% if user.is_superuser %}
+                                <a href="{% url 'employee_detail' employee.id %}" class="employee-link">
+                            {% endif %}
                             <div class="employee-info">
                                 <div class="employee-avatar">
                                     {% if employee.photo %}
@@ -141,6 +148,21 @@
                                     <div class="employee-phone">{{ employee.phone|default:"Телефон не указан" }}</div>
                                 </div>
                             </div>
+                            {% if user.is_superuser %}
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td class="pinfl-col">
+                            <div class="pinfl-info">
+                                {% if employee.pinfl %}
+                                    <span class="pinfl-value">{{ employee.pinfl }}</span>
+                                {% else %}
+                                    <span class="pinfl-missing">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        Не указан
+                                    </span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="position-col">
                             <div class="position-info">
@@ -151,7 +173,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="no-data">
+                        <td colspan="5" class="no-data">
                             <div class="no-data-content">
                                 <i class="bi bi-people"></i>
                                 <p>Сотрудники не найдены</p>

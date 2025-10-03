@@ -26,7 +26,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         model = Employee
         fields = [
             'id', 'last_name', 'first_name', 'middle_name', 'full_name',
-            'birth_date', 'age', 'gender', 'phone', 'email',
+            'birth_date', 'age', 'gender', 'pinfl', 'phone', 'email',
             'organization', 'department', 'department_name',
             'division', 'division_name', 'position', 'employee_id',
             'hire_date', 'termination_date', 'is_active',
@@ -273,4 +273,31 @@ class BirthdayEmployeeSerializer(serializers.ModelSerializer):
             return (next_year_birthday - today).days
         else:
             return (this_year_birthday - today).days
+
+
+class PINFLSyncSerializer(serializers.Serializer):
+    """Сериализатор для синхронизации PINFL с SKUD API"""
+    
+    employee_id = serializers.UUIDField()
+    pinfl = serializers.CharField(max_length=14, min_length=14)
+    date = serializers.DateField()
+    
+    def validate_pinfl(self, value):
+        """Валидация PINFL"""
+        if not value.isdigit():
+            raise serializers.ValidationError("PINFL должен содержать только цифры")
+        if len(value) != 14:
+            raise serializers.ValidationError("PINFL должен содержать ровно 14 цифр")
+        return value
+
+
+class PINFLSyncResponseSerializer(serializers.Serializer):
+    """Сериализатор для ответа синхронизации PINFL"""
+    
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    employee_id = serializers.UUIDField()
+    pinfl = serializers.CharField()
+    skud_response = serializers.DictField(required=False)
+    error_details = serializers.CharField(required=False)
 

@@ -3,6 +3,11 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.http import HttpResponseRedirect
+from django.contrib import messages
+from django.db import transaction
+import logging
+
+logger = logging.getLogger(__name__)
 from .models import (
     Organization, Department, Division, Employee, Vacation, BusinessTrip, 
     WorkTimeRecord, SKUDDevice, SKUDEvent, WorkSession, WorkDaySummary, WorkTimeAuditLog,
@@ -102,16 +107,16 @@ class WorkDaySummaryInline(admin.TabularInline):
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ['full_name', 'employee_id', 'position', 'department', 'division', 'is_active', 'hire_date']
+    list_display = ['full_name', 'employee_id', 'pinfl', 'position', 'department', 'division', 'is_active', 'hire_date']
     list_filter = ['is_active', 'position', 'department__organization', 'department', 'division', 'gender']
-    search_fields = ['last_name', 'first_name', 'middle_name', 'employee_id', 'email']
+    search_fields = ['last_name', 'first_name', 'middle_name', 'employee_id', 'pinfl', 'email']
     readonly_fields = ['id', 'created_at', 'updated_at', 'age']
     fieldsets = (
         ('Основная информация', {
             'fields': ('last_name', 'first_name', 'middle_name', 'photo')
         }),
         ('Личные данные', {
-            'fields': ('birth_date', 'age', 'gender', 'phone', 'email')
+            'fields': ('birth_date', 'age', 'gender', 'pinfl', 'phone', 'email')
         }),
         ('Рабочая информация', {
             'fields': ('organization', 'department', 'division', 'position', 'employee_id')
@@ -123,6 +128,10 @@ class EmployeeAdmin(admin.ModelAdmin):
             'fields': ('work_fraction', 'daily_hours'),
             'description': 'Настройки для расчёта рабочего времени'
         }),
+        ('Данные из СКУД системы', {
+            'fields': ('external_id', 'work_start_time', 'work_end_time'),
+            'description': 'Данные, полученные из внешней системы СКУД'
+        }),
         ('Системные поля', {
             'fields': ('id', 'created_at', 'updated_at'),
             'classes': ('collapse',)
@@ -132,6 +141,74 @@ class EmployeeAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('organization', 'department', 'division')
+    
+    def delete_model(self, request, obj):
+        """Полное удаление сотрудника со всеми связанными данными"""
+        employee_name = obj.full_name
+        employee_pinfl = obj.pinfl
+        
+        # Логируем удаление
+        logger.warning(f"Администратор {request.user.username} удаляет сотрудника {employee_name} (PINFL: {employee_pinfl}) через Django Admin")
+        
+        try:
+            with transaction.atomic():
+                # Удаляем все связанные данные
+                WorkSession.objects.filter(employee=obj).delete()
+                WorkDaySummary.objects.filter(employee=obj).delete()
+                WorkTimeRecord.objects.filter(employee=obj).delete()
+                Vacation.objects.filter(employee=obj).delete()
+                BusinessTrip.objects.filter(employee=obj).delete()
+                SKUDEvent.objects.filter(employee=obj).delete()
+                # AccessLog может не иметь поля employee, пропускаем
+                
+                # Удаляем связи с ролями
+                if hasattr(obj, 'user') and obj.user:
+                    RolePermission.objects.filter(user=obj.user).delete()
+                
+                # Удаляем самого сотрудника
+                super().delete_model(request, obj)
+                
+                logger.info(f"Сотрудник {employee_name} (PINFL: {employee_pinfl}) успешно удален администратором {request.user.username}")
+                messages.success(request, f"Сотрудник '{employee_name}' полностью удален из системы со всеми связанными данными.")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при удалении сотрудника {employee_name}: {str(e)}")
+            messages.error(request, f"Ошибка при удалении сотрудника: {str(e)}")
+            raise
+    
+    def delete_queryset(self, request, queryset):
+        """Массовое удаление сотрудников"""
+        count = queryset.count()
+        employee_names = [emp.full_name for emp in queryset]
+        
+        logger.warning(f"Администратор {request.user.username} удаляет {count} сотрудников через Django Admin: {', '.join(employee_names)}")
+        
+        try:
+            with transaction.atomic():
+                for obj in queryset:
+                    # Удаляем все связанные данные для каждого сотрудника
+                    WorkSession.objects.filter(employee=obj).delete()
+                    WorkDaySummary.objects.filter(employee=obj).delete()
+                    WorkTimeRecord.objects.filter(employee=obj).delete()
+                    Vacation.objects.filter(employee=obj).delete()
+                    BusinessTrip.objects.filter(employee=obj).delete()
+                    SKUDEvent.objects.filter(employee=obj).delete()
+                    # AccessLog может не иметь поля employee, пропускаем
+                    
+                    # Удаляем связи с ролями
+                    if hasattr(obj, 'user') and obj.user:
+                        RolePermission.objects.filter(user=obj.user).delete()
+                
+                # Удаляем самих сотрудников
+                super().delete_queryset(request, queryset)
+                
+                logger.info(f"{count} сотрудников успешно удалено администратором {request.user.username}")
+                messages.success(request, f"Успешно удалено {count} сотрудников со всеми связанными данными.")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при массовом удалении {count} сотрудников: {str(e)}")
+            messages.error(request, f"Ошибка при удалении сотрудников: {str(e)}")
+            raise
 
 
 @admin.register(Vacation)
