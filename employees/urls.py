@@ -27,7 +27,6 @@ urlpatterns = [
     path('employees/create/', frontend_views.create_employee, name='create_employee'),
     path('employees/<uuid:employee_id>/', frontend_views.employee_detail, name='employee_detail'),
     path('employees/<uuid:employee_id>/edit/', frontend_views.edit_employee, name='edit_employee'),
-    path('employees/<uuid:employee_id>/update-pinfl/', frontend_views.update_pinfl, name='update_pinfl'),
     path('employees/<uuid:employee_id>/events/', frontend_views.employee_events, name='employee_events'),
     path('send-test-event/', frontend_views.send_test_event, name='send_test_event'),
     

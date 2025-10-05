@@ -1,0 +1,549 @@
+{% extends 'employees/base.html' %}
+{% load static %}
+
+{% block title %}Редактировать сотрудника - {{ employee.full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.edit-employee-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.edit-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.edit-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.edit-header .breadcrumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 8px 16px;
+    display: inline-block;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.edit-form {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f3f4f6;
+}
+
+.form-section {
+    margin-bottom: 30px;
+}
+
+.form-section h3 {
+    color: #6b7280;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 8px;
+    margin-bottom: 24px;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: #6b7280;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    letter-spacing: 0.025em;
+}
+
+.form-control {
+    padding: 12px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background-color: #fafafa;
+    box-shadow: none;
+    color: #4b5563;
+    font-weight: 400;
+}
+
+.form-control:focus {
+    border-color: #d1d5db;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.05);
+    background-color: #ffffff;
+    outline: none;
+    transform: none;
+}
+
+.form-control:hover {
+    border-color: #d1d5db;
+    background-color: #f9fafb;
+    box-shadow: none;
+}
+
+.form-control::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
+}
+
+/* Специальные стили для select полей */
+.form-control select,
+select.form-control {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+/* Стили для checkbox */
+.form-control[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    background-color: #ffffff;
+    cursor: pointer;
+}
+
+.form-control[type="checkbox"]:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+/* Стили для всех input, select, textarea полей (на случай если Django не добавил класс) */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+    padding: 12px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background-color: #fafafa;
+    box-shadow: none;
+    color: #4b5563;
+    font-weight: 400;
+    width: 100%;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+    border-color: #d1d5db;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.05);
+    background-color: #ffffff;
+    outline: none;
+}
+
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="tel"]:hover,
+input[type="date"]:hover,
+input[type="number"]:hover,
+select:hover,
+textarea:hover {
+    border-color: #d1d5db;
+    background-color: #f9fafb;
+    box-shadow: none;
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+    background-color: #fff5f5;
+}
+
+.invalid-feedback {
+    color: #dc3545;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-cancel:hover {
+    background: #5a6268;
+    color: white;
+    text-decoration: none;
+    transform: translateY(-2px);
+}
+
+.alert {
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: none;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .edit-employee-container {
+        padding: 15px;
+    }
+    
+    .edit-form {
+        padding: 20px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-employee-container">
+    <!-- Header -->
+    <div class="edit-header">
+        <h1>Редактировать сотрудника</h1>
+        <p style="margin: 10px 0 0 0; opacity: 0.9;">Обновите информацию о сотруднике</p>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Edit Form -->
+    <div class="edit-form">
+        <form method="post" id="editEmployeeForm">
+            {% csrf_token %}
+            
+            <!-- Personal Information -->
+            <div class="form-section">
+                <h3>👤 Личная информация</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.first_name.id_for_label }}">Имя *</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.first_name.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.last_name.id_for_label }}">Фамилия *</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.last_name.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.middle_name.id_for_label }}">Отчество</label>
+                        {{ form.middle_name }}
+                        {% if form.middle_name.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.middle_name.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.birth_date.id_for_label }}">Дата рождения</label>
+                        {{ form.birth_date }}
+                        {% if form.birth_date.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.birth_date.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.gender.id_for_label }}">Пол</label>
+                        {{ form.gender }}
+                        {% if form.gender.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.gender.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.phone.id_for_label }}">Телефон</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.phone.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.email.id_for_label }}">Email</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <div class="invalid-feedback">
+                            {{ form.email.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Work Information -->
+            <div class="form-section">
+                <h3>💼 Рабочая информация</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.employee_id.id_for_label }}">Табельный номер *</label>
+                        {{ form.employee_id }}
+                        {% if form.employee_id.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.employee_id.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.position.id_for_label }}">Должность *</label>
+                        {{ form.position }}
+                        {% if form.position.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.position.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.organization.id_for_label }}">Организация</label>
+                        {{ form.organization }}
+                        {% if form.organization.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.organization.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.department.id_for_label }}">Отдел</label>
+                        {{ form.department }}
+                        {% if form.department.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.department.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.division.id_for_label }}">Подразделение</label>
+                        {{ form.division }}
+                        {% if form.division.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.division.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.hire_date.id_for_label }}">Дата приема</label>
+                        {{ form.hire_date }}
+                        {% if form.hire_date.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.hire_date.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.work_fraction.id_for_label }}">Ставка работы</label>
+                        {{ form.work_fraction }}
+                        {% if form.work_fraction.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.work_fraction.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.daily_hours.id_for_label }}">Часов в день</label>
+                        {{ form.daily_hours }}
+                        {% if form.daily_hours.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.daily_hours.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        {{ form.is_active }}
+                        Активный сотрудник
+                    </label>
+                    {% if form.is_active.errors %}
+                        <div class="invalid-feedback">
+                            {{ form.is_active.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn-save">
+                    <i class="bi bi-check-lg"></i>
+                    Сохранить изменения
+                </button>
+                <a href="{% url 'employee_detail' employee.id %}" class="btn-cancel">
+                    <i class="bi bi-x-lg"></i>
+                    Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Добавляем классы к полям формы
+    const formControls = document.querySelectorAll('.form-control');
+    formControls.forEach(control => {
+        if (control.classList.contains('is-invalid')) {
+            control.style.borderColor = '#dc3545';
+            control.style.backgroundColor = '#fff5f5';
+        }
+    });
+    
+    // Валидация формы
+    const form = document.getElementById('editEmployeeForm');
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Проверяем обязательные поля
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Пожалуйста, заполните все обязательные поля');
+        }
+    });
+    
+    // Убираем класс is-invalid при вводе
+    formControls.forEach(control => {
+        control.addEventListener('input', function() {
+            this.classList.remove('is-invalid');
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -275,6 +275,61 @@ class Employee(models.Model, TurboDRFMixin):
             return (end - start).total_seconds() / 3600
         return float(self.daily_hours)
     
+    @property
+    def work_experience(self):
+        """Стаж работы сотрудника"""
+        if not self.hire_date:
+            return "Не указана дата приема"
+        
+        from datetime import date
+        today = date.today()
+        end_date = self.termination_date if self.termination_date else today
+        
+        # Рассчитываем разность в днях
+        delta = end_date - self.hire_date
+        total_days = delta.days
+        
+        if total_days < 0:
+            return "Ошибка в датах"
+        
+        # Рассчитываем годы, месяцы и дни
+        years = total_days // 365
+        remaining_days = total_days % 365
+        months = remaining_days // 30
+        days = remaining_days % 30
+        
+        # Формируем строку стажа
+        experience_parts = []
+        
+        if years > 0:
+            if years == 1:
+                experience_parts.append("1 год")
+            elif years in [2, 3, 4]:
+                experience_parts.append(f"{years} года")
+            else:
+                experience_parts.append(f"{years} лет")
+        
+        if months > 0:
+            if months == 1:
+                experience_parts.append("1 месяц")
+            elif months in [2, 3, 4]:
+                experience_parts.append(f"{months} месяца")
+            else:
+                experience_parts.append(f"{months} месяцев")
+        
+        if days > 0 and years == 0:  # Показываем дни только если нет лет
+            if days == 1:
+                experience_parts.append("1 день")
+            elif days in [2, 3, 4]:
+                experience_parts.append(f"{days} дня")
+            else:
+                experience_parts.append(f"{days} дней")
+        
+        if not experience_parts:
+            return "Менее месяца"
+        
+        return ", ".join(experience_parts)
+    
     def update_from_api_data(self, api_data):
         """
         Обновить данные сотрудника из API СКУД

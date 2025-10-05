@@ -220,7 +220,7 @@
 
 .table-header {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 2fr 1.5fr 1.5fr 1fr;
     gap: 1rem;
     padding: 0.75rem 0;
     border-bottom: 1px solid #e9ecef;
@@ -235,7 +235,7 @@
 
 .table-row {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 2fr 1.5fr 1.5fr 1fr;
     gap: 1rem;
     padding: 0.75rem 0;
     border-bottom: 1px solid #f8f9fa;
@@ -249,6 +249,39 @@
 .employee-name {
     font-weight: 500;
     color: #212529;
+}
+
+.col-position {
+    display: flex;
+    align-items: center;
+}
+
+.position-text {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.col-events {
+    display: flex;
+    align-items: center;
+}
+
+.event-info {
+    color: #495057;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.no-events {
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.col-status {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
 }
 
 .col-info {
@@ -268,6 +301,8 @@
     border-radius: 1rem;
     font-size: 0.8rem;
     font-weight: 500;
+    display: inline-block;
+    transition: all 0.2s ease;
 }
 
 .status-on_time {
@@ -283,6 +318,27 @@
 .status-absent {
     background: #f8d7da;
     color: #721c24;
+}
+
+.status-на-работе {
+    background: #d4edda !important;
+    color: #155724 !important;
+    border: 1px solid #28a745 !important;
+    box-shadow: 0 1px 3px rgba(40, 167, 69, 0.2) !important;
+}
+
+.status-не-на-работе {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    border: 1px solid #ffc107 !important;
+    box-shadow: 0 1px 3px rgba(255, 193, 7, 0.2) !important;
+}
+
+.status-отсутствует {
+    background: #f8d7da !important;
+    color: #721c24 !important;
+    border: 1px solid #dc3545 !important;
+    box-shadow: 0 1px 3px rgba(220, 53, 69, 0.2) !important;
 }
 
 .gender-cards {
@@ -338,120 +394,275 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     overflow: hidden;
     flex: 1;
-    min-height: 200px;
+    min-height: 280px;
 }
 
-.birthdays-swiper-container {
-    height: 200px;
+/* Новая структура для одной карточки именинника */
+.birthday-single-container {
+    padding: 1rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.birthday-single-card {
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    text-align: center;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    mask: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0) 0%,
-        rgba(0, 0, 0, 1) 20%,
-        rgba(0, 0, 0, 1) 80%,
-        rgba(0, 0, 0, 0) 100%
-    );
-    -webkit-mask: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0) 0%,
-        rgba(0, 0, 0, 1) 20%,
-        rgba(0, 0, 0, 1) 80%,
-        rgba(0, 0, 0, 0) 100%
-    );
+    opacity: 1;
+    transform: translateY(0);
 }
 
-.birthdays-swiper {
-    height: 100%;
+.birthday-single-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-.birthdays-swiper .swiper-wrapper {
-    transition-timing-function: linear !important;
+/* Убираем мерцание */
+.birthday-single-card::before {
+    display: none;
 }
 
-.birthdays-swiper .swiper-slide {
-    height: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.birthday-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: white;
-    border-radius: 0.5rem;
-    transition: all 0.2s ease;
-    width: 100%;
-    max-width: 280px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    margin: 0.25rem 0;
-}
-
-.birthday-item:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-}
-
-.birthday-item.today {
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
-    border: 1px solid #f59e0b;
-}
-
-.birthday-avatar {
-    width: 2.5rem;
-    height: 2.5rem;
+.birthday-avatar-large {
+    width: 4rem;
+    height: 4rem;
     border-radius: 50%;
-    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 1.25rem;
+    font-size: 2rem;
     flex-shrink: 0;
-    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    transition: all 0.3s ease;
+    animation: pulse 2s infinite;
 }
 
-.birthday-avatar img {
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+    }
+}
+
+.birthday-avatar-large img {
     width: 100%;
     height: 100%;
+    border-radius: 50%;
     object-fit: cover;
 }
 
-.birthday-details {
-    flex: 1;
+.birthday-info {
+    text-align: center;
+    width: 100%;
+    transition: all 0.3s ease;
 }
 
-.birthday-name {
-    font-weight: 600;
-    color: #212529;
+/* Анимации для элементов внутри карточки */
+.birthday-name-large,
+.birthday-date-full,
+.birthday-congratulation {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.birthday-name-large {
+    font-weight: 700;
+    color: #1e40af;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+    transition: all 0.3s ease;
+}
+
+.birthday-date-full {
+    color: #1e3a8a;
     font-size: 0.9rem;
-    margin-bottom: 0.25rem;
-}
-
-.birthday-date {
-    color: #6c757d;
-    font-size: 0.8rem;
-}
-
-.birthday-badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: 1rem;
-    font-size: 0.7rem;
+    margin-bottom: 0.75rem;
     font-weight: 500;
-    white-space: nowrap;
+    transition: all 0.3s ease;
 }
 
-.birthday-badge.today {
-    background: #d4edda;
-    color: #155724;
+.birthday-congratulation {
+    color: #1e40af;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+    transition: all 0.3s ease;
 }
 
-.birthday-badge.upcoming {
-    background: #cce5ff;
-    color: #004085;
+.birthday-badge-large {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.3s ease;
+    animation: bounce 1s ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-5px);
+    }
+    60% {
+        transform: translateY(-3px);
+    }
+}
+
+.birthday-badge-large.today {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+    to {
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.8);
+    }
+}
+
+.birthday-badge-large.upcoming {
+    background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+    color: #1e40af;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+    border: 1px solid #3b82f6;
+}
+
+.birthday-navigation {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.birthday-nav-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
+    color: #0277bd;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(2, 119, 189, 0.2);
+}
+
+.birthday-nav-btn:hover {
+    background: linear-gradient(135deg, #b3e5fc, #81d4fa);
+    color: #01579b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(2, 119, 189, 0.3);
+}
+
+.birthday-nav-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(2, 119, 189, 0.4);
+}
+
+.birthday-nav-btn:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nav-counter {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #475569;
+    min-width: 3rem;
+    text-align: center;
+}
+
+/* Убираем старые CSS анимации - используем JavaScript */
+
+/* Фильтр для именинников */
+.birthday-filter {
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.birthday-filter-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.birthday-filter-btn:hover {
+    background: #e2e8f0;
+    color: #475569;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+.birthday-filter-btn.active {
+    background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
+    color: #0277bd;
+    border-color: #81d4fa;
+    box-shadow: 0 2px 8px rgba(2, 119, 189, 0.2);
+}
+
+/* Убираем мерцание из фильтров */
+.birthday-filter-btn::before {
+    display: none;
 }
 
 .no-birthdays {
@@ -563,6 +774,60 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
+}
+
+/* Полноширинная аналитика */
+.full-width-analytics {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.analytics-panel.full-width {
+    width: 100%;
+    max-width: none;
+}
+
+.analytics-panel-content.full-width-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.analytics-table.full-width-table {
+    width: 100%;
+}
+
+.analytics-chart.full-width-chart {
+    width: 100%;
+    height: 300px;
+}
+
+/* Скроллируемая таблица */
+.scrollable-table {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+}
+
+.scrollable-table::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollable-table::-webkit-scrollbar-track {
+    background: #f1f3f4;
+    border-radius: 4px;
+}
+
+.scrollable-table::-webkit-scrollbar-thumb {
+    background: #c1c8cd;
+    border-radius: 4px;
+}
+
+.scrollable-table::-webkit-scrollbar-thumb:hover {
+    background: #a8b2ba;
 }
 
 .analytics-panel {
@@ -687,34 +952,160 @@
     grid-template-columns: 2fr 1fr 1fr;
 }
 
-.analytics-panel:nth-child(3) .analytics-table-header,
-.analytics-panel:nth-child(3) .analytics-table-row {
-    grid-template-columns: 2fr 1fr 1fr;
+/* Стили для проблемных сотрудников - полная ширина */
+.full-width-panel {
+    grid-column: 1 / -1;
+    width: 100%;
 }
 
-.analytics-panel:nth-child(4) .analytics-table-header,
-.analytics-panel:nth-child(4) .analytics-table-row {
-    grid-template-columns: 2fr 1fr 1fr;
+.full-width-panel .analytics-panel-content {
+    width: 100%;
+}
+
+.full-width-panel .analytics-table {
+    width: 100%;
+}
+
+.full-width-panel .analytics-table-header,
+.full-width-panel .analytics-table-row {
+    grid-template-columns: 2.5fr 1.8fr 0.8fr 1.2fr 1fr !important;
+    width: 100% !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    min-height: 40px !important;
+    display: grid !important;
+    grid-template-areas: none !important;
 }
 
 /* Стили для содержимого таблиц */
+.full-width-panel .analytics-table-header > div,
+.full-width-panel .analytics-table-row > div {
+    padding: 2px 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    min-height: 32px !important;
+    width: auto !important;
+    flex: none !important;
+    grid-column: auto !important;
+}
+
 .employee-name {
     font-weight: 600;
     color: #212529;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    margin: 0;
+    line-height: 1.2;
 }
 
-.employee-dept {
+.department-name {
     color: #6c757d;
     font-size: 0.8rem;
-    display: block;
-    margin-top: 0.25rem;
+    margin: 0;
+}
+
+.late-count {
+    font-weight: 600;
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.missed-hours {
+    font-weight: 600;
+    color: #fd7e14;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+/* Специфичные правила для колонок проблемных сотрудников */
+.full-width-panel .col-employee {
+    grid-column: 1 !important;
+    order: 1 !important;
+}
+
+.full-width-panel .col-department {
+    grid-column: 2 !important;
+    order: 2 !important;
+}
+
+.full-width-panel .col-late {
+    grid-column: 3 !important;
+    order: 3 !important;
+}
+
+.full-width-panel .col-missed {
+    grid-column: 4 !important;
+    order: 4 !important;
+}
+
+.full-width-panel .col-rating {
+    grid-column: 5 !important;
+    order: 5 !important;
 }
 
 .hours-value {
     font-weight: 700;
     color: #1e40af;
     font-size: 1rem;
+}
+
+/* Стили для таблицы проблемных сотрудников */
+.department-name {
+    font-weight: 500;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.late-count {
+    font-weight: 600;
+    color: #dc3545;
+    background: #f8d7da;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    display: inline-block;
+}
+
+.missed-hours {
+    font-weight: 600;
+    color: #fd7e14;
+    background: #fff3cd;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    display: inline-block;
+}
+
+.problem-rating {
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    display: inline-block;
+    text-align: center;
+    min-width: 2rem;
+}
+
+.problem-rating.excellent {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.problem-rating.good {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.problem-rating.satisfactory {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.problem-rating.poor {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
 .problem-type {
@@ -834,6 +1225,14 @@
     .analytics-grid {
         grid-template-columns: 1fr;
     }
+    
+    .full-width-analytics {
+        padding: 0 1rem;
+    }
+    
+    .scrollable-table {
+        max-height: 350px;
+    }
 }
 
 @media (max-width: 1200px) {
@@ -856,6 +1255,14 @@
     
     .analytics-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .full-width-analytics {
+        padding: 0 0.5rem;
+    }
+    
+    .scrollable-table {
+        max-height: 250px;
     }
 }
 
@@ -886,6 +1293,25 @@
     
     .quick-stats-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .full-width-analytics {
+        padding: 0 0.25rem;
+    }
+    
+    .scrollable-table {
+        max-height: 200px;
+    }
+    
+    .analytics-table-header,
+    .analytics-table-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .analytics-table-header > div,
+    .analytics-table-row > div {
+        padding: 0.25rem 0;
     }
     
     .birthday-item {
@@ -936,5 +1362,75 @@
         gap: 0.75rem;
         align-items: flex-start;
     }
+    
+    /* Адаптивность для таблицы сотрудников */
+    .table-header,
+    .table-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .table-header > div,
+    .table-row > div {
+        padding: 0.25rem 0;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .table-header > div:before,
+    .table-row > div:before {
+        content: attr(data-label) ": ";
+        font-weight: 600;
+        color: #495057;
+        display: inline-block;
+        min-width: 120px;
+    }
+    
+    .col-status {
+        justify-content: flex-start;
+    }
+}
+
+/* Стили для модального окна событий */
+.events-timeline {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.event-item {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+    margin-bottom: 0.5rem;
+    border-left: 3px solid #dee2e6;
+}
+
+.event-item:last-child {
+    margin-bottom: 0;
+}
+
+.event-time {
+    font-weight: 600;
+    color: #495057;
+    min-width: 60px;
+}
+
+.event-type {
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.event-device {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+/* Интерактивность для строк сотрудников */
+.employee-row:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.employee-row:hover .employee-name {
+    color: #1e40af;
 }
 </style>

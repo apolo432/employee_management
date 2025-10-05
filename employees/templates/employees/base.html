@@ -568,6 +568,13 @@
         function loadBirthdayWidget() {
             console.log('Загружаем данные о днях рождения...');
             
+            // Проверяем, есть ли элементы на странице
+            const widget = document.getElementById('birthday-widget');
+            if (!widget) {
+                console.log('Элемент birthday-widget не найден на странице, пропускаем загрузку');
+                return;
+            }
+            
             fetch('/api/worktime/birthdays/birthday_widget_data/')
                 .then(response => {
                     console.log('Ответ сервера:', response.status);
@@ -578,6 +585,12 @@
                     
                     const widget = document.getElementById('birthday-widget');
                     const content = document.getElementById('birthday-content');
+                    
+                    // Проверяем, что элементы существуют
+                    if (!widget || !content) {
+                        console.log('Элементы birthday-widget или birthday-content не найдены на странице');
+                        return;
+                    }
                     
                     if (data.has_today_birthdays || data.upcoming_birthdays.length > 0) {
                         widget.style.display = 'block';
@@ -629,15 +642,18 @@
                 })
                 .catch(error => {
                     console.error('Ошибка загрузки данных о днях рождения:', error);
-                    document.getElementById('birthday-widget').style.display = 'none';
+                    const widget = document.getElementById('birthday-widget');
+                    if (widget) {
+                        widget.style.display = 'none';
+                    }
                 });
         }
         
         // Загружаем виджет дня рождения при загрузке страницы
         loadBirthdayWidget();
         
-        // Обновляем виджет каждую минуту (для тестирования)
-        setInterval(loadBirthdayWidget, 60000);
+        // Обновляем виджет каждые 5 минут (уменьшили частоту)
+        setInterval(loadBirthdayWidget, 300000);
         
         // Принудительное обновление при клике на виджет
         document.addEventListener('DOMContentLoaded', function() {

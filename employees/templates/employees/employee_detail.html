@@ -49,13 +49,9 @@
                     </div>
                 </div>
                 <div class="profile-actions">
-                    <a href="{% url 'edit_employee' employee.id %}" class="btn btn-primary">
+                    <a href="{% url 'edit_employee' employee.id %}" class="btn btn-primary btn-edit-employee">
                         <i class="bi bi-pencil"></i>
                         Редактировать
-                    </a>
-                    <a href="{% url 'update_pinfl' employee.id %}" class="btn btn-outline-primary">
-                        <i class="bi bi-person-badge"></i>
-                        Обновить PINFL
                     </a>
                 </div>
             </div>
@@ -180,6 +176,10 @@
                                         <label>Часов в день:</label>
                                         <span>{{ employee.daily_hours }} ч</span>
                                     </div>
+                                    <div class="info-item">
+                                        <label>Стаж:</label>
+                                        <span>{{ employee.work_experience }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -191,29 +191,54 @@
                                 <div class="activity-section">
                                     <h4><i class="bi bi-door-open"></i> Последние события СКУД</h4>
                                     {% if recent_events %}
-                                        <div class="events-list">
-                                            {% for event in recent_events %}
-                                            <div class="event-item">
-                                                <div class="event-icon">
-                                                    {% if event.event_type == 'entry' %}
-                                                        <i class="bi bi-box-arrow-in-right text-success"></i>
-                                                    {% else %}
-                                                        <i class="bi bi-box-arrow-right text-danger"></i>
-                                                    {% endif %}
+                                        <div class="events-columns">
+                                            <!-- Входы (левая колонка) -->
+                                            <div class="events-column">
+                                                <div class="column-header">
+                                                    <i class="bi bi-box-arrow-in-right text-success"></i>
+                                                    <span>Входы</span>
                                                 </div>
-                                                <div class="event-details">
-                                                    <div class="event-type">
+                                                <div class="events-list">
+                                                    {% for event in recent_events %}
                                                         {% if event.event_type == 'entry' %}
-                                                            Вход
-                                                        {% else %}
-                                                            Выход
+                                                        <div class="event-item">
+                                                            <div class="event-icon">
+                                                                <i class="bi bi-box-arrow-in-right text-success"></i>
+                                                            </div>
+                                                            <div class="event-details">
+                                                                <div class="event-type">Вход</div>
+                                                                <div class="event-time">{{ event.event_time|date:"d.m.Y H:i" }}</div>
+                                                                <div class="event-device">{{ event.device.name }}</div>
+                                                            </div>
+                                                        </div>
                                                         {% endif %}
-                                                    </div>
-                                                    <div class="event-time">{{ event.event_time|date:"d.m.Y H:i" }}</div>
-                                                    <div class="event-device">{{ event.device.name }}</div>
+                                                    {% endfor %}
                                                 </div>
                                             </div>
-                                            {% endfor %}
+                                            
+                                            <!-- Выходы (правая колонка) -->
+                                            <div class="events-column">
+                                                <div class="column-header">
+                                                    <i class="bi bi-box-arrow-right text-danger"></i>
+                                                    <span>Выходы</span>
+                                                </div>
+                                                <div class="events-list">
+                                                    {% for event in recent_events %}
+                                                        {% if event.event_type == 'exit' %}
+                                                        <div class="event-item">
+                                                            <div class="event-icon">
+                                                                <i class="bi bi-box-arrow-right text-danger"></i>
+                                                            </div>
+                                                            <div class="event-details">
+                                                                <div class="event-type">Выход</div>
+                                                                <div class="event-time">{{ event.event_time|date:"d.m.Y H:i" }}</div>
+                                                                <div class="event-device">{{ event.device.name }}</div>
+                                                            </div>
+                                                        </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
                                         </div>
                                     {% else %}
                                         <p class="no-data">Нет данных о событиях</p>
@@ -355,6 +380,31 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    align-items: flex-end;
+}
+
+.btn-edit-employee {
+    padding: 12px 24px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+    border: none;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-edit-employee:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    background-color: #0056b3;
+}
+
+.btn-edit-employee i {
+    font-size: 16px;
 }
 
 .profile-content {
@@ -453,6 +503,37 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+/* Стили для колонок событий */
+.events-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.events-column {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+}
+
+.column-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #495057;
+}
+
+.column-header i {
+    font-size: 1.2rem;
 }
 
 .event-item, .summary-item {
@@ -583,6 +664,16 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 5px;
+    }
+    
+    /* Адаптивность для колонок событий */
+    .events-columns {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .events-column {
+        padding: 12px;
     }
 }
 </style>

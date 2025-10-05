@@ -182,16 +182,23 @@ class EmployeeEditForm(forms.ModelForm):
             'work_fraction', 'daily_hours'
         ]
         widgets = {
-            'birth_date': forms.DateInput(attrs={'type': 'date'}),
-            'hire_date': forms.DateInput(attrs={'type': 'date'}),
-            'termination_date': forms.DateInput(attrs={'type': 'date'}),
-            'work_fraction': forms.NumberInput(attrs={'step': '0.25', 'min': '0.25', 'max': '2.00'}),
-            'daily_hours': forms.NumberInput(attrs={'step': '0.5', 'min': '1', 'max': '24'}),
+            'birth_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'hire_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'termination_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'work_fraction': forms.NumberInput(attrs={'step': '0.25', 'min': '0.25', 'max': '2.00', 'class': 'form-control'}),
+            'daily_hours': forms.NumberInput(attrs={'step': '0.5', 'min': '1', 'max': '24', 'class': 'form-control'}),
         }
     
     def __init__(self, *args, **kwargs):
         self.employee = kwargs.pop('employee', None)
         super().__init__(*args, **kwargs)
+        
+        # Добавляем CSS классы ко всем полям
+        for field_name, field in self.fields.items():
+            if field.widget.attrs.get('class'):
+                field.widget.attrs['class'] += ' form-control'
+            else:
+                field.widget.attrs['class'] = 'form-control'
         
         # Делаем PINFL обязательным
         self.fields['pinfl'].required = True
@@ -229,47 +236,3 @@ class EmployeeEditForm(forms.ModelForm):
         return employee_id
 
 
-class PINFLUpdateForm(forms.Form):
-    """Форма для обновления PINFL сотрудника"""
-    
-    pinfl = forms.CharField(
-        max_length=14,
-        min_length=14,
-        label="PINFL",
-        help_text="14-значный персональный идентификационный номер физического лица",
-        widget=forms.TextInput(attrs={
-            'placeholder': '12345678901234',
-            'pattern': '[0-9]{14}',
-            'title': 'Введите 14 цифр'
-        })
-    )
-    
-    def __init__(self, *args, **kwargs):
-        self.employee = kwargs.pop('employee', None)
-        super().__init__(*args, **kwargs)
-    
-    def clean_pinfl(self):
-        """Валидация PINFL"""
-        pinfl = self.cleaned_data.get('pinfl')
-        
-        if not pinfl:
-            raise ValidationError("PINFL обязателен для заполнения")
-        
-        # Проверяем, что PINFL содержит только цифры
-        if not pinfl.isdigit():
-            raise ValidationError("PINFL должен содержать только цифры")
-        
-        # Проверяем длину
-        if len(pinfl) != 14:
-            raise ValidationError("PINFL должен содержать ровно 14 цифр")
-        
-        # Проверяем уникальность (исключая текущего сотрудника)
-        if self.employee:
-            existing_employee = Employee.objects.filter(pinfl=pinfl).exclude(id=self.employee.id).first()
-            if existing_employee:
-                raise ValidationError("Сотрудник с таким PINFL уже существует")
-        else:
-            if Employee.objects.filter(pinfl=pinfl).exists():
-                raise ValidationError("Сотрудник с таким PINFL уже существует")
-        
-        return pinfl

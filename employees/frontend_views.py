@@ -27,7 +27,7 @@ from .decorators import (
     can_create_employee
 )
 from .permissions import PermissionChecker
-from .forms import EmployeeRegistrationForm, EmployeeEditForm, PINFLUpdateForm
+from .forms import EmployeeRegistrationForm, EmployeeEditForm
 from .pinfl_api import pinfl_client, get_employee_by_pinfl_api_view, sync_employee_api_view, create_employee_api_view
 
 
@@ -120,12 +120,54 @@ def dashboard(request):
             'is_present': False
         })
     
+    # Получаем последние события турникета для каждого сотрудника
+    for attendance in today_attendance:
+        employee = attendance['employee']
+        
+        # Получаем последнее событие за сегодня
+        last_event = SKUDEvent.objects.filter(
+            employee=employee,
+            event_time__date=today
+        ).order_by('-event_time').first()
+        
+        if last_event:
+            attendance['last_event'] = {
+                'time': last_event.event_time.time().strftime('%H:%M'),  # Конвертируем время в строку
+                'type': last_event.event_type,
+                'type_display': 'Вход' if last_event.event_type == 'entry' else 'Выход'
+            }
+            # Определяем статус: если последнее событие "вход" - на работе, если "выход" - не на работе
+            attendance['work_status'] = 'На работе' if last_event.event_type == 'entry' else 'Не на работе'
+        else:
+            attendance['last_event'] = None
+            attendance['work_status'] = 'Отсутствует'
+        
+        # Получаем все события за день для детального просмотра
+        day_events = SKUDEvent.objects.filter(
+            employee=employee,
+            event_time__date=today
+        ).order_by('-event_time')
+        
+        attendance['day_events'] = [
+            {
+                'time': event.event_time.time().strftime('%H:%M'),  # Конвертируем время в строку
+                'type': event.event_type,
+                'type_display': 'Вход' if event.event_type == 'entry' else 'Выход',
+                'device': event.device.name if event.device else 'Неизвестно'
+            } for event in day_events
+        ]
+    
     # Сортируем по выбранному параметру
     if sort_by == 'name':
         today_attendance.sort(key=lambda x: x['employee'].full_name, reverse=(sort_order == 'desc'))
     elif sort_by == 'status':
-        status_order = {'on_time': 0, 'late': 1, 'absent': 2}
-        today_attendance.sort(key=lambda x: status_order.get(x['status'], 3), reverse=(sort_order == 'desc'))
+        # Сортировка по статусу работы (На работе/Не на работе/Отсутствует)
+        status_order = {'На работе': 0, 'Не на работе': 1, 'Отсутствует': 2}
+        today_attendance.sort(key=lambda x: status_order.get(x['work_status'], 3), reverse=(sort_order == 'desc'))
+    elif sort_by == 'work_status':
+        # Сортировка по статусу работы (На работе/Не на работе/Отсутствует)
+        status_order = {'На работе': 0, 'Не на работе': 1, 'Отсутствует': 2}
+        today_attendance.sort(key=lambda x: status_order.get(x['work_status'], 3), reverse=(sort_order == 'desc'))
     else:  # sort_by == 'time'
         today_attendance.sort(key=lambda x: x['arrival_time'] or datetime.max.time(), reverse=(sort_order == 'desc'))
     
@@ -135,7 +177,16 @@ def dashboard(request):
     # Получаем всех активных сотрудников
     all_employees = Employee.objects.filter(is_active=True).select_related('department', 'division')
     
+    print(f"=== ОТЛАДКА ДНЕЙ РОЖДЕНИЯ ===")
+    print(f"Всего активных сотрудников: {all_employees.count()}")
+    
     for emp in all_employees:
+        print(f"Сотрудник: {emp.full_name}, Дата рождения: {emp.birth_date}")
+        
+        if not emp.birth_date:
+            print(f"  - Нет даты рождения, пропускаем")
+            continue
+            
         this_year_birthday = emp.birth_date.replace(year=today.year)
         
         # Если день рождения уже прошел в этом году, берем следующий год
@@ -149,6 +200,10 @@ def dashboard(request):
             birthday_date = this_year_birthday
             is_today = (days_until == 0)
         
+        print(f"  - День рождения в этом году: {this_year_birthday}")
+        print(f"  - Дней до дня рождения: {days_until}")
+        print(f"  - Сегодня: {is_today}")
+        
         all_birthdays.append({
             'employee': emp,
             'days_until': days_until,
@@ -159,169 +214,120 @@ def dashboard(request):
     # Сортируем по количеству дней до дня рождения
     all_birthdays.sort(key=lambda x: x['days_until'])
     
+    print(f"Итого дней рождения найдено: {len(all_birthdays)}")
+    for b in all_birthdays:
+        print(f"  - {b['employee'].full_name}: {b['birthday_date']} (через {b['days_until']} дней, сегодня: {b['is_today']})")
+    
     # =============================================================================
     # АНАЛИТИЧЕСКИЕ ДАННЫЕ
     # =============================================================================
     
-    # 1. Топ сотрудников по эффективности (за последнюю неделю)
-    top_employees = []
-    work_sessions_week = WorkSession.objects.filter(
-        date__gte=week_ago,
-        employee__is_active=True
-    ).select_related('employee')
     
-    # Группируем по сотрудникам и считаем общее время
-    employee_hours = {}
-    for session in work_sessions_week:
-        emp_id = session.employee.id
-        if emp_id not in employee_hours:
-            employee_hours[emp_id] = {
-                'employee': session.employee,
-                'total_hours': 0,
-                'sessions_count': 0
-            }
-        if session.duration_hours:
-            employee_hours[emp_id]['total_hours'] += session.duration_hours
-        employee_hours[emp_id]['sessions_count'] += 1
     
-    # Сортируем по общему времени и берем топ-5
-    top_employees = sorted(employee_hours.values(), key=lambda x: x['total_hours'], reverse=True)[:5]
     
-    # 2. Проблемы требующие внимания
-    problems = []
+    # Проблемные сотрудники
+    problematic_employees = []
+    all_employees = Employee.objects.filter(is_active=True)
     
-    # Опоздания за неделю
-    late_count = 0
-    for session in work_sessions_week:
-        if session.start_time.time() > datetime.strptime('09:00', '%H:%M').time():
-            late_count += 1
-    
-    if late_count > 0:
-        problems.append({
-            'type': 'Опоздания',
-            'count': late_count,
-            'status': 'warning',
-            'action': 'Проверить расписание'
+    for employee in all_employees:
+        # Считаем опоздания за последние 30 дней
+        late_count = 0
+        missed_hours = 0
+        
+        # Получаем события за последние 30 дней
+        thirty_days_ago = today - timedelta(days=30)
+        events = SKUDEvent.objects.filter(
+            employee=employee,
+            event_time__date__gte=thirty_days_ago
+        ).order_by('event_time')
+        
+        # Анализируем события по дням
+        current_date = None
+        first_entry = None
+        last_exit = None
+        
+        for event in events:
+            event_date = event.event_time.date()
+            
+            if current_date != event_date:
+                # Новый день - анализируем предыдущий
+                if current_date and first_entry:
+                    # Проверяем опоздание (после 9:00)
+                    if first_entry.time() > datetime.strptime('09:00', '%H:%M').time():
+                        late_count += 1
+                    
+                    # Считаем пропущенные часы (если нет выхода)
+                    if not last_exit:
+                        missed_hours += 8  # Полный рабочий день
+                    else:
+                        # Считаем недобор часов
+                        work_duration = last_exit - first_entry
+                        if work_duration.total_seconds() / 3600 < 8:
+                            missed_hours += 8 - (work_duration.total_seconds() / 3600)
+                
+                # Начинаем новый день
+                current_date = event_date
+                first_entry = None
+                last_exit = None
+            
+            # Записываем первое вхождение и последний выход
+            if event.event_type == 'entry' and not first_entry:
+                first_entry = event.event_time
+            elif event.event_type == 'exit':
+                last_exit = event.event_time
+        
+        # Анализируем последний день
+        if current_date and first_entry:
+            if first_entry.time() > datetime.strptime('09:00', '%H:%M').time():
+                late_count += 1
+            if not last_exit:
+                missed_hours += 8
+        
+        # Рассчитываем рейтинг проблемности (0-10)
+        # Более строгая система: опоздания * 3 + пропущенные часы / 4
+        rating = min(10, (late_count * 3) + (missed_hours / 4))
+        
+        # Определяем статус
+        if rating <= 1:
+            status = 'Отлично'
+        elif rating <= 3:
+            status = 'Хорошо'
+        elif rating <= 6:
+            status = 'Удовлетворительно'
+        else:
+            status = 'Плохо'
+        
+        problematic_employees.append({
+            'employee': employee,
+            'late_count': late_count,
+            'missed_hours': round(missed_hours, 1),
+            'rating': round(rating, 1),
+            'status': status
         })
     
-    # Отсутствие выхода (открытые сессии)
-    open_sessions = WorkSession.objects.filter(
-        employee__is_active=True,
-        end_time__isnull=True,
-        date__gte=week_ago
-    ).count()
-    
-    if open_sessions > 0:
-        problems.append({
-            'type': 'Незакрытые сессии',
-            'count': open_sessions,
-            'status': 'error',
-            'action': 'Закрыть сессии'
-        })
-    
-    # Проблемы с устройствами
-    offline_devices = SKUDDevice.objects.filter(
-        is_active=True,
-        status__in=['inactive', 'error']
-    ).count()
-    
-    if offline_devices > 0:
-        problems.append({
-            'type': 'Неисправные устройства',
-            'count': offline_devices,
-            'status': 'error',
-            'action': 'Проверить устройства'
-        })
-    
-    # 3. Статистика по отделам
-    departments_stats = []
-    departments = Employee.objects.filter(is_active=True).values('department__name').annotate(
-        total_employees=Count('id')
-    ).order_by('-total_employees')[:5]
-    
-    for dept in departments:
-        dept_name = dept['department__name']
-        total_emp = dept['total_employees']
-        
-        # Считаем присутствующих сегодня
-        present_today = len([att for att in today_attendance 
-                           if att['employee'].department.name == dept_name and att['is_present']])
-        
-        # Считаем эффективность (часы работы за неделю)
-        dept_employees = Employee.objects.filter(
-            is_active=True, 
-            department__name=dept_name
-        )
-        total_hours = 0
-        for emp in dept_employees:
-            emp_sessions = work_sessions_week.filter(employee=emp)
-            total_hours += sum(s.duration_hours for s in emp_sessions if s.duration_hours)
-        
-        efficiency = (total_hours / (total_emp * 40)) * 100 if total_emp > 0 else 0  # 40 часов в неделю
-        
-        departments_stats.append({
-            'name': dept_name,
-            'total_employees': total_emp,
-            'present_today': present_today,
-            'efficiency': round(efficiency, 1)
-        })
-    
-    # 4. Активность СКУД устройств
-    devices_activity = []
-    devices = SKUDDevice.objects.filter(is_active=True).order_by('name')[:5]
-    
-    for device in devices:
-        # События за сегодня
-        today_events = SKUDEvent.objects.filter(
-            device=device,
-            event_time__date=today
-        ).count()
-        
-        # Последняя активность
-        last_event = SKUDEvent.objects.filter(device=device).order_by('-event_time').first()
-        last_activity = last_event.event_time if last_event else None
-        
-        devices_activity.append({
-            'device': device,
-            'status': device.status,
-            'events_today': today_events,
-            'last_activity': last_activity
-        })
+    # Сортируем по рейтингу проблемности (по убыванию)
+    problematic_employees.sort(key=lambda x: x['rating'], reverse=True)
     
     # Данные для графиков
     import json
     
-    # Bar chart - топ сотрудники
-    top_employees_chart = {
-        'labels': [emp['employee'].full_name for emp in top_employees],
-        'data': [emp['total_hours'] for emp in top_employees]
+    # Bar chart - проблемные сотрудники
+    problematic_chart = {
+        'labels': [emp['employee'].full_name for emp in problematic_employees[:10]],
+        'data': [emp['rating'] for emp in problematic_employees[:10]]
     }
     
-    # Pie chart - проблемы
-    problems_chart = {
-        'labels': [p['type'] for p in problems],
-        'data': [p['count'] for p in problems]
-    }
-    
-    # Bar chart - отделы
-    departments_chart = {
-        'labels': [dept['name'] for dept in departments_stats],
-        'data': [dept['efficiency'] for dept in departments_stats]
-    }
-    
-    # Line chart - активность устройств за 7 дней
-    devices_line_data = []
-    for i in range(7):
-        date = today - timedelta(days=6-i)
-        total_events = SKUDEvent.objects.filter(
-            event_time__date=date
-        ).count()
-        devices_line_data.append(total_events)
-    
-    devices_chart = {
-        'labels': [(today - timedelta(days=6-i)).strftime('%d.%m') for i in range(7)],
-        'data': devices_line_data
-    }
+    # Подготавливаем данные для JavaScript
+    attendance_data_for_js = []
+    for att in today_attendance:
+        attendance_data_for_js.append({
+            'employee': {
+                'id': str(att['employee'].id),  # Конвертируем UUID в строку
+                'full_name': att['employee'].full_name,
+                'department_id': str(att['employee'].department.id) if att['employee'].department else None
+            },
+            'day_events': att['day_events']
+        })
     
     context = {
         'total_employees': total_employees,
@@ -338,16 +344,33 @@ def dashboard(request):
         'sort_order': sort_order,
         
         # Аналитические данные
-        'top_employees': top_employees,
-        'problems': problems,
-        'departments_stats': departments_stats,
-        'devices_activity': devices_activity,
+        'problematic_employees': problematic_employees[:10],  # Топ 10 проблемных
         
         # Данные для графиков (JSON сериализованные)
-        'top_employees_chart': json.dumps(top_employees_chart),
-        'problems_chart': json.dumps(problems_chart),
-        'departments_chart': json.dumps(departments_chart),
-        'devices_chart': json.dumps(devices_chart),
+        'problematic_chart': json.dumps(problematic_chart),
+        
+        # Данные для HTML шаблона
+        'today_attendance': today_attendance,
+        
+        # Данные для JavaScript
+        'today_attendance_json': json.dumps(attendance_data_for_js),
+        
+        # Подготавливаем данные о днях рождения для JavaScript
+        'birthdays_json': json.dumps([{
+            'employee': {
+                'full_name': b['employee'].full_name,
+                'photo': b['employee'].photo.url if b['employee'].photo else None
+            },
+            'birthday_date': b['birthday_date'].strftime('%Y-%m-%d'),
+            'days_until': b['days_until'],
+            'is_today': b['is_today']
+        } for b in all_birthdays], ensure_ascii=False),
+        
+        # Данные для фильтров
+        'departments': Employee.objects.filter(
+            is_active=True,
+            department__isnull=False
+        ).values_list('department__id', 'department__name').distinct().order_by('department__name'),
     }
     
     return render(request, 'employees/dashboard.html', context)
@@ -365,13 +388,15 @@ def analytics_data(request):
     chart_type = request.GET.get('chart_type')
     period = int(request.GET.get('period', 7))
     limit = int(request.GET.get('limit', 5))
-    filter_type = request.GET.get('filter_type', 'all')
+    filter_type = request.GET.get('filter_type', request.GET.get('filter', 'all'))
     metric = request.GET.get('metric', 'efficiency')
+    department = request.GET.get('department', 'all')
     
     today = timezone.now().date()
     start_date = today - timedelta(days=period-1)
     
     try:
+        
         if chart_type == 'top_employees':
             # Топ сотрудников
             work_sessions = WorkSession.objects.filter(
@@ -407,64 +432,10 @@ def analytics_data(request):
                 ]
             }
             
-        elif chart_type == 'problems':
-            # Проблемы
-            problems = []
-            
-            # Опоздания
-            if filter_type in ['all', 'late']:
-                work_sessions = WorkSession.objects.filter(
-                    date__gte=start_date,
-                    employee__is_active=True
-                )
-                late_count = 0
-                for session in work_sessions:
-                    if session.start_time.time() > datetime.strptime('09:00', '%H:%M').time():
-                        late_count += 1
-                
-                if late_count > 0:
-                    problems.append({
-                        'type': 'Опоздания',
-                        'count': late_count,
-                        'status': 'warning'
-                    })
-            
-            # Незакрытые сессии
-            if filter_type in ['all', 'sessions']:
-                open_sessions = WorkSession.objects.filter(
-                    employee__is_active=True,
-                    end_time__isnull=True,
-                    date__gte=start_date
-                ).count()
-                
-                if open_sessions > 0:
-                    problems.append({
-                        'type': 'Незакрытые сессии',
-                        'count': open_sessions,
-                        'status': 'error'
-                    })
-            
-            # Проблемы с устройствами
-            if filter_type in ['all', 'devices']:
-                offline_devices = SKUDDevice.objects.filter(
-                    is_active=True,
-                    status__in=['inactive', 'error']
-                ).count()
-                
-                if offline_devices > 0:
-                    problems.append({
-                        'type': 'Неисправные устройства',
-                        'count': offline_devices,
-                        'status': 'error'
-                    })
-            
-            data = {
-                'labels': [p['type'] for p in problems],
-                'data': [p['count'] for p in problems],
-                'table_data': problems
-            }
             
         elif chart_type == 'departments':
+            # Этот блок удален - не используется
+            data = {'labels': [], 'data': [], 'table_data': []}
             # Отделы
             departments = Employee.objects.filter(is_active=True).values('department__name').annotate(
                 total_employees=Count('id')
@@ -526,49 +497,41 @@ def analytics_data(request):
                 'table_data': departments_stats
             }
             
-        elif chart_type == 'devices':
-            # Устройства
-            devices_query = SKUDDevice.objects.filter(is_active=True)
-            if filter_type == 'active':
-                devices_query = devices_query.filter(status='active')
-            elif filter_type == 'inactive':
-                devices_query = devices_query.filter(status__in=['inactive', 'error'])
+        elif chart_type == 'problematic_employees':
+            # Проблемные сотрудники - упрощенная версия для отладки
+            employees_query = Employee.objects.filter(is_active=True)
             
-            devices = devices_query.order_by('name')[:limit]
+            # Фильтр по департаменту
+            if department != 'all':
+                try:
+                    employees_query = employees_query.filter(department_id=department)
+                except:
+                    pass
             
-            devices_activity = []
-            for device in devices:
-                # События за период
-                period_events = SKUDEvent.objects.filter(
-                    device=device,
-                    event_time__date__gte=start_date
-                ).count()
-                
-                # Последняя активность
-                last_event = SKUDEvent.objects.filter(device=device).order_by('-event_time').first()
-                last_activity = last_event.event_time if last_event else None
-                
-                devices_activity.append({
-                    'device_name': device.name,
-                    'location': device.location,
-                    'status': device.status,
-                    'events_count': period_events,
-                    'last_activity': last_activity
+            employees = employees_query[:limit]
+            
+            # Создаем тестовые данные для демонстрации
+            problematic_data = []
+            for i, employee in enumerate(employees):
+                problematic_data.append({
+                    'full_name': employee.full_name,
+                    'department': employee.department.name if employee.department else 'Не указан',
+                    'late_count': i % 3,
+                    'missed_hours': round(i * 0.5, 1),
+                    'rating': round(i * 0.8, 1),
+                    'status': 'Отлично' if i < 2 else 'Хорошо' if i < 4 else 'Плохо'
                 })
             
-            # Данные для линейного графика
-            line_data = []
-            for i in range(period):
-                date = today - timedelta(days=period-1-i)
-                total_events = SKUDEvent.objects.filter(
-                    event_time__date=date
-                ).count()
-                line_data.append(total_events)
+            # Применяем фильтр
+            if filter_type == 'problematic':
+                problematic_data = [emp for emp in problematic_data if emp['rating'] > 3]
+            elif filter_type == 'best':
+                problematic_data = [emp for emp in problematic_data if emp['rating'] <= 3]
             
             data = {
-                'labels': [(today - timedelta(days=period-1-i)).strftime('%d.%m') for i in range(period)],
-                'data': line_data,
-                'table_data': devices_activity
+                'labels': [emp['full_name'] for emp in problematic_data[:10]],
+                'data': [emp['rating'] for emp in problematic_data[:10]],
+                'table_data': problematic_data
             }
         
         else:
@@ -1795,57 +1758,6 @@ def edit_employee(request, employee_id):
         return redirect('employees_list')
 
 
-@require_login
-@can_edit_employee
-def update_pinfl(request, employee_id):
-    """Обновление PINFL сотрудника"""
-    try:
-        employee = Employee.objects.get(id=employee_id)
-        
-        # Проверяем права доступа
-        if not PermissionChecker.can_edit_employee(request.user, employee):
-            messages.error(request, 'У вас нет прав для редактирования данных этого сотрудника')
-            return redirect('employee_detail', employee_id=employee.id)
-        
-        if request.method == 'POST':
-            form = PINFLUpdateForm(request.POST, employee=employee)
-            if form.is_valid():
-                try:
-                    old_pinfl = employee.pinfl
-                    new_pinfl = form.cleaned_data['pinfl']
-                    
-                    # Обновляем PINFL
-                    employee.pinfl = new_pinfl
-                    employee.save(update_fields=['pinfl'])
-                    
-                    # Синхронизируем с SKUD API
-                    sync_result = pinfl_client.sync_employee_pinfl(
-                        employee=employee,
-                        pinfl=new_pinfl,
-                        date=date.today()
-                    )
-                    
-                    if sync_result['success']:
-                        messages.success(request, f'PINFL успешно обновлен и синхронизирован с SKUD')
-                    else:
-                        messages.warning(request, f'PINFL обновлен, но не синхронизирован с SKUD: {sync_result.get("error_details", "Неизвестная ошибка")}')
-                    
-                    return redirect('employee_detail', employee_id=employee.id)
-                except Exception as e:
-                    messages.error(request, f'Ошибка при обновлении PINFL: {str(e)}')
-        else:
-            form = PINFLUpdateForm(employee=employee)
-        
-        context = {
-            'form': form,
-            'employee': employee,
-        }
-        
-        return render(request, 'employees/update_pinfl.html', context)
-        
-    except Employee.DoesNotExist:
-        messages.error(request, 'Сотрудник не найден')
-        return redirect('employees_list')
 
 
 @require_login
@@ -1870,3 +1782,4 @@ def get_divisions(request):
         return JsonResponse(list(divisions), safe=False)
     
     return JsonResponse([], safe=False)
+
